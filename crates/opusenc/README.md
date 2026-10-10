@@ -1,6 +1,6 @@
 # effectcraft-opusenc
 
-Clean-room, pure-Rust Opus encoder for EffectCraft's WebM export audio (layer L0, `std` only,
+Clean-room, pure-Rust Opus encoder for MIXEL Effects's WebM export audio (layer L0, `std` only,
 no `unsafe`, builds for `wasm32-unknown-unknown`).
 
 All three Opus modes, 20 ms packets (one frame per packet), 48 kHz float input, mono or stereo:
@@ -85,7 +85,7 @@ recursive band splitting, greedy PVQ search. Not implemented: transient frames, 
 pitch post-filter, intensity stereo, dynamic allocation, VBR. All-zero CELT frames become 3-byte
 silence packets.
 
-## Measured (tests in `tests/`, FilmCraft decoder)
+## Measured (tests in `tests/`, MIXEL Film decoder)
 
 Synthetic speech (glottal pulses 100–200 Hz through three moving formants, syllable envelopes,
 pauses) and music (three-note harmonic chords); waveform SNR against the input band-limited to
@@ -128,7 +128,7 @@ Laplace model, the allocation table, ICDFs; all SILK probability tables and code
 stage-1/2 codebooks and prediction weights, gain, pitch, contour, LTP and pulse ICDFs, stereo
 weights) and the decoder-side normative arithmetic the encoder must reproduce bit-exactly (CELT
 allocation; SILK NLSF dequantisation and stabilisation, NLSF → LPC conversion, `log2lin`, the
-fixed-point division/inverse helpers and the LPC analysis filter) are mirrored from FilmCraft's
+fixed-point division/inverse helpers and the LPC analysis filter) are mirrored from MIXEL Film's
 first-party, spec-derived `filmcraft-opus` decoder (MIT OR Apache-2.0), which is also the
 round-trip oracle in `tests/` and `crates/export/tests/opus_roundtrip.rs` (ffmpeg is a second,
 external oracle when installed). All encoder-side analysis and search (pitch, LPC, NLSF and

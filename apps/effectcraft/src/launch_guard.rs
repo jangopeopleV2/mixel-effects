@@ -1,6 +1,6 @@
 //! Settings ▸ Startup & Repair ▸ Window Graphics, and the launch guard behind it.
 //!
-//! Some graphics drivers crash EffectCraft as its window's device is created (an access
+//! Some graphics drivers crash MIXEL Effects as its window's device is created (an access
 //! violation in an older Intel UHD driver with DirectX 12 / Vulkan, #243). A crash in a driver
 //! can't be caught, so each launch leaves a marker in the settings folder until its window has
 //! drawn a frame. A launch that finds the previous one's marker switches Window Graphics to
@@ -49,7 +49,7 @@ impl Launch {
                 Err(e) => log::warn!("the last launch never drew its window; saving Window Graphics failed: {e}"),
             }
             notice = Some(
-                "EffectCraft's last launch stopped before its window opened, so it now draws with OpenGL \
+                "MIXEL Effects's last launch stopped before its window opened, so it now draws with OpenGL \
                  (Settings ▸ Startup & Repair ▸ Window Graphics). Updating the graphics driver may let it use \
                  Automatic again."
                     .to_string(),

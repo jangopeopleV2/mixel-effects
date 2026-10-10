@@ -205,7 +205,7 @@ fn native_query(_: &JsValue, args: &[JsValue], ctx: &mut Context) -> JsResult<Js
     let a = arg_json(args, 1, ctx)?;
     let r = with_active(|act| match kind.as_str() {
         "app" => Ok(json!({
-            "version": format!("26.0 (EffectCraft {})", env!("CARGO_PKG_VERSION")),
+            "version": format!("26.0 (MIXEL Effects {})", env!("CARGO_PKG_VERSION")),
             "buildName": env!("CARGO_PKG_VERSION"),
             "scriptName": act.name,
             "allowFiles": act.session.prefs.scripting.allow_scripts_write_files,
@@ -392,7 +392,7 @@ fn native_file(_: &JsValue, args: &[JsValue], ctx: &mut Context) -> JsResult<JsV
                 Ok(json!(r.is_ok()))
             }
             "network" => Err(if s.prefs.scripting.allow_scripts_write_files {
-                "network access from scripts is not supported in EffectCraft".to_string()
+                "network access from scripts is not supported in MIXEL Effects".to_string()
             } else {
                 format!("scripts can't access the network unless {GATE} is on")
             }),

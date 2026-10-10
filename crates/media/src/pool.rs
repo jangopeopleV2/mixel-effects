@@ -193,10 +193,10 @@ struct Inner {
     conforming: Mutex<HashSet<std::path::PathBuf>>,
 }
 
-/// Decodes footage for the renderer: stills, image sequences and movies (FilmCraft codecs), plus
+/// Decodes footage for the renderer: stills, image sequences and movies (MIXEL Film codecs), plus
 /// audio. Thread-safe and cheap to clone (clones share decoders and cache).
 ///
-/// - One decoder per movie: FilmCraft's GOP cache keeps it positioned, so sequential frames
+/// - One decoder per movie: MIXEL Film's GOP cache keeps it positioned, so sequential frames
 ///   decode without re-seeking, and a seek decodes forward from the preceding sync sample.
 /// - Converted frames live in an LRU cache bounded by a byte budget ([`DEFAULT_BUDGET`]).
 /// - Sequential playback reads one frame ahead on a worker thread (native builds), so decoding
@@ -436,7 +436,7 @@ impl MediaPool {
 
     /// [`MediaPool::audio_samples`] straight from the decoder. The source is read at its own
     /// rate and resampled here (linear, by absolute sample position, so a range comes out the
-    /// same however it is split into reads). FilmCraft's MP4 reader, asked for another rate,
+    /// same however it is split into reads). MIXEL Film's MP4 reader, asked for another rate,
     /// applied the edit list's priming offset twice and ramped the start of every read: AAC
     /// footage not at the mix rate stuttered in previews and exports (#274).
     fn decode_audio(&self, footage: &Footage, start: Tick, frames: usize, rate: u32) -> Vec<f32> {
@@ -738,7 +738,7 @@ impl FootageSource for MediaPool {
 }
 
 /// `frames` stereo sample frames (interleaved) of `src` from sample `s0` at `rate` Hz, which
-/// FilmCraft serves as decoded when it is the source's own rate. Mono is duplicated to both
+/// MIXEL Film serves as decoded when it is the source's own rate. Mono is duplicated to both
 /// channels; silence before the start and where decoding fails.
 fn read_stereo(src: &SharedSource, path: &str, s0: i64, frames: usize, rate: u32) -> Vec<f32> {
     let mut out = vec![0.0; frames * 2];

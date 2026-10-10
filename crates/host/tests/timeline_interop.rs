@@ -1,5 +1,5 @@
 //! Premiere Pro interop through timeline interchange, with real media: documents written in code
-//! with FilmCraft's writers are imported (`file.importTimeline`) and rendered; compositions are
+//! with MIXEL Film's writers are imported (`file.importTimeline`) and rendered; compositions are
 //! exported (`file.exportTimeline`, with a ProRes 4444 pre-render) and re-imported, and both
 //! render the same pixels.
 

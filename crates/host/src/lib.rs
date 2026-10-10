@@ -1,6 +1,6 @@
-//! A fully wired [`Session`]: footage decoding through `effectcraft-media` (FilmCraft's codecs),
+//! A fully wired [`Session`]: footage decoding through `effectcraft-media` (MIXEL Film's codecs),
 //! the media importer, the expression engine, JavaScript scripting (`effectcraft-script`) and
-//! Render Queue export through `effectcraft-export` (FilmCraft's encoders). Frontends (desktop,
+//! Render Queue export through `effectcraft-export` (MIXEL Film's encoders). Frontends (desktop,
 //! CLI, MCP, web) start here.
 
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
@@ -95,8 +95,8 @@ pub fn session() -> Session {
     }
 }
 
-/// The platform config directory for EffectCraft (`EFFECTCRAFT_CONFIG_DIR` overrides):
-/// `~/Library/Application Support/EffectCraft` (macOS), `%APPDATA%\EffectCraft` (Windows),
+/// The platform config directory for MIXEL Effects (`EFFECTCRAFT_CONFIG_DIR` overrides):
+/// `~/Library/Application Support/MIXEL Effects` (macOS), `%APPDATA%\MIXEL Effects` (Windows),
 /// `$XDG_CONFIG_HOME/effectcraft` or `~/.config/effectcraft` (Linux and others).
 pub fn config_dir() -> Option<std::path::PathBuf> {
     use std::path::PathBuf;
@@ -105,10 +105,10 @@ pub fn config_dir() -> Option<std::path::PathBuf> {
     }
     let home = || std::env::var_os("HOME").map(PathBuf::from);
     if cfg!(target_os = "macos") {
-        return home().map(|h| h.join("Library/Application Support/EffectCraft"));
+        return home().map(|h| h.join("Library/Application Support/MIXEL Effects"));
     }
     if cfg!(target_os = "windows") {
-        return std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("EffectCraft"));
+        return std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("MIXEL Effects"));
     }
     std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).or_else(|| home().map(|h| h.join(".config"))).map(|c| c.join("effectcraft"))
 }

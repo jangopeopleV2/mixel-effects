@@ -1,4 +1,4 @@
-//! The EffectCraft compositor (CPU reference path).
+//! The MIXEL Effects compositor (CPU reference path).
 //!
 //! `Renderer::comp_frame` renders a composition at a time:
 //! bottom-to-top over visible layers → **source** (solid, footage, text, shapes, precomp) →

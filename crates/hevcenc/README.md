@@ -1,6 +1,6 @@
 # effectcraft-hevcenc
 
-Clean-room, pure-Rust HEVC / H.265 encoder for EffectCraft's MP4 export (layer L0, `std` only,
+Clean-room, pure-Rust HEVC / H.265 encoder for MIXEL Effects's MP4 export (layer L0, `std` only,
 no `unsafe`, builds for `wasm32-unknown-unknown`).
 
 ## What it produces
@@ -83,6 +83,6 @@ Implemented from the specification text. Constant tables (CABAC context layout a
 rangeTabLPS / transIdx, scan orders, the DCT / DST matrices, intra angles, interpolation filters,
 the chroma QP table, the deblocking beta / tC tables) and the decoder-side reconstruction
 arithmetic (intra reference substitution / filtering / prediction, fractional interpolation,
-deblocking) are mirrored from FilmCraft's first-party, spec-derived `filmcraft-hevc` decoder (same
+deblocking) are mirrored from MIXEL Film's first-party, spec-derived `filmcraft-hevc` decoder (same
 organisation, MIT OR Apache-2.0), so that encoder and decoder reconstruct identically. No
 third-party encoder or decoder source (x265, libde265, ffmpeg, HM, ...) was consulted.

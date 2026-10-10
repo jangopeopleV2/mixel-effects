@@ -1,6 +1,6 @@
 {
-  "name": "EffectCraft",
-  "short_name": "EffectCraft",
+  "name": "MIXEL Effects",
+  "short_name": "MIXEL Effects",
   "description": "Motion graphics and visual effects compositor, in the browser",
   "id": "./",
   "start_url": "./",

@@ -1,18 +1,18 @@
-# Flatpak manifest for EffectCraft, ready for a Flathub submission.
+# Flatpak manifest for MIXEL Effects, ready for a Flathub submission.
 #
 # Flatpak builds run offline, so the crate sources must be vendored first. From the repo root:
 #
 #   curl -fsSLO https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py
 #   python3 flatpak-cargo-generator.py Cargo.lock -o packaging/linux/flatpak/cargo-sources.json
-#   flatpak-builder --user --install --force-clean build-flatpak packaging/linux/flatpak/ai.storyteller.effectcraft.yml
-#   flatpak run ai.storyteller.effectcraft
+#   flatpak-builder --user --install --force-clean build-flatpak packaging/linux/flatpak/ch.mixel.effects.yml
+#   flatpak run ch.mixel.effects
 #
 # For Flathub, replace the `dir` source with a `git` source pinned to a release tag and commit.
 #
-# ai.storyteller.effectcraft.bundle.yml (same directory) builds the .flatpak attached to each
+# ch.mixel.effects.bundle.yml (same directory) builds the .flatpak attached to each
 # release from the release's Linux tarball. Keep runtime-version and finish-args identical in both
 # (packaging-lint checks this).
-id: ai.storyteller.effectcraft
+id: ch.mixel.effects
 runtime: org.freedesktop.Platform
 runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
@@ -56,14 +56,14 @@ modules:
       - cargo --offline build --release --locked -p effectcraft -p effectcraft-cli
       - install -Dm755 target/release/effectcraft /app/bin/effectcraft
       - install -Dm755 target/release/effectcraft-cli /app/bin/effectcraft-cli
-      - install -Dm644 packaging/linux/ai.storyteller.effectcraft.desktop /app/share/applications/ai.storyteller.effectcraft.desktop
-      - install -Dm644 packaging/linux/ai.storyteller.effectcraft.mime.xml /app/share/mime/packages/ai.storyteller.effectcraft.xml
+      - install -Dm644 packaging/linux/ch.mixel.effects.desktop /app/share/applications/ch.mixel.effects.desktop
+      - install -Dm644 packaging/linux/ch.mixel.effects.mime.xml /app/share/mime/packages/ch.mixel.effects.xml
       - mkdir -p /app/share/icons && cp -R assets/app-icon/hicolor /app/share/icons/
       - >-
         version=$(awk '/^\[/{p=($0=="[workspace.package]");next} p&&$1=="version"{gsub(/[" ]/,"",$3);print $3;exit}' Cargo.toml);
         install -d /app/share/metainfo;
         sed -e "s/@VERSION@/$version/" -e "s/@DATE@/$(date -u +%Y-%m-%d)/"
-        packaging/linux/ai.storyteller.effectcraft.metainfo.xml.in > /app/share/metainfo/ai.storyteller.effectcraft.metainfo.xml
+        packaging/linux/ch.mixel.effects.metainfo.xml.in > /app/share/metainfo/ch.mixel.effects.metainfo.xml
     sources:
       - type: dir
         path: ../../..

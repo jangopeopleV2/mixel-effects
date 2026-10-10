@@ -14,13 +14,13 @@
 //!   @effects                                  the effect categories (Effect menu)
 //!   @dynamic:history                          entries computed from the session when the menu
 //!                                             opens ([`dynamic`]: recent files, undo history…)
-//! [mac] Quit EffectCraft | app.quit           only on macOS ([!mac] = everywhere else)
+//! [mac] Quit MIXEL Effects | app.quit           only on macOS ([!mac] = everywhere else)
 //! ```
 //!
 //! An entry's shortcut is the command's default shortcut unless the line gives one (needed for
 //! entries with bound parameters). Adobe-service entries (Team Projects, Libraries, Bridge, Media
 //! Encoder, Behance, Creative Cloud…) are intentionally absent; the Essential Graphics workspace
-//! uses the Properties panel and the Essential Graphics panel, whose templates use EffectCraft's
+//! uses the Properties panel and the Essential Graphics panel, whose templates use MIXEL Effects's
 //! own open `.ectemplate` format.
 
 use std::sync::OnceLock;
@@ -472,8 +472,8 @@ fn effect_categories() -> Vec<MenuNode> {
 
 /// The After Effects menu layout. Labels use "..." like AE's macOS menus.
 pub const TREE: &str = r#"
-[mac] EffectCraft
-  About EffectCraft... | app.about
+[mac] MIXEL Effects
+  About MIXEL Effects... | app.about
   ---
   Settings...
     General... | app.settings {"page":"general"} | Cmd+Alt+;
@@ -494,11 +494,11 @@ pub const TREE: &str = r#"
     3D... | app.settings {"page":"3d"}
     Scripting & Expressions... | app.settings {"page":"scripting"}
   ---
-  Hide EffectCraft | app.hide
+  Hide MIXEL Effects | app.hide
   Hide Others | app.hideOthers
   Show All | app.showAll
   ---
-  Quit EffectCraft | app.quit
+  Quit MIXEL Effects | app.quit
 File
   New
     New Project | file.newProject
@@ -1203,7 +1203,7 @@ Window
   VR Comp Editor | window.panel {"panel":"vrCompEditor"}
   @dynamic:scriptPanels
 Help
-  EffectCraft Help... | help.docs {"page":"help"} | F1
+  MIXEL Effects Help... | help.docs {"page":"help"} | F1
   Scripting Help... | help.docs {"page":"scripting"}
   Expression Reference... | help.docs {"page":"expressions"}
   Effect Reference... | help.docs {"page":"effects"}
@@ -1221,11 +1221,11 @@ Help
   Provide Feedback... | help.reportIssue
   ---
   ArtCraft Website | help.website
-  EffectCraft Home Page | help.appPage
-  EffectCraft on GitHub | help.github
+  MIXEL Effects Home Page | help.appPage
+  MIXEL Effects on GitHub | help.github
   Open Demo Project | file.openDemoProject
   [!mac] ---
-  [!mac] About EffectCraft... | app.about
+  [!mac] About MIXEL Effects... | app.about
 "#;
 
 #[cfg(test)]

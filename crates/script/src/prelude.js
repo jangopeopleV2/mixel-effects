@@ -1,4 +1,4 @@
-// EffectCraft scripting: an After Effects-style object model over the engine.
+// MIXEL Effects scripting: an After Effects-style object model over the engine.
 //
 // Written from the behaviour the After Effects Scripting Guide documents (object names,
 // attributes, methods). Reads go through `__query(kind, json)`; every edit runs an engine command
@@ -108,8 +108,8 @@ var $ = {
   level: 0,
   engineName: "boa",
   get fileName() { return __get("app").scriptName; },
-  get os() { return "EffectCraft"; },
-  get version() { return "EffectCraft scripting"; },
+  get os() { return "MIXEL Effects"; },
+  get version() { return "MIXEL Effects scripting"; },
   get locale() { return "en_US"; },
   evalFile: function () { throw __err("$.evalFile is not supported: scripts can't run scripts"); },
 };
@@ -212,7 +212,7 @@ File.openDialog = function () { return null; };
 File.saveDialog = function () { return null; };
 File.decode = function (s) { return decodeURIComponent(s); };
 File.encode = function (s) { return encodeURIComponent(s); };
-File.fs = "EffectCraft";
+File.fs = "MIXEL Effects";
 
 function Folder(path) {
   if (!(this instanceof Folder)) return new Folder(path);
@@ -1434,7 +1434,7 @@ CompItem.prototype.constructor = CompItem;
   };
   P.openInViewer = function () { __call("comp.open", { comp: this.__id }); return null; };
   P.duplicate = function () { return __item(__call("project.duplicate", { items: [this.__id] }).items[0]); };
-  // Essential Graphics (templates are EffectCraft's open .ectemplate files).
+  // Essential Graphics (templates are MIXEL Effects's open .ectemplate files).
   P.__eg = function () { return __call("essential.list", { comp: this.__id }); };
   P.__controllers = function () {
     var out = [];
@@ -1788,7 +1788,7 @@ var app = {
   pauseWatchFolder: function () {},
   endWatchFolder: function () {},
   parseSwatchFile: function () { throw __err("parseSwatchFile is not supported"); },
-  // EffectCraft: run any engine command by id with parameters (see `command.list`).
+  // MIXEL Effects: run any engine command by id with parameters (see `command.list`).
   run: function (id, params) { return __call(String(id), params || {}); },
   toString: function () { return "[object Application]"; },
 };

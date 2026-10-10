@@ -274,7 +274,7 @@ impl egui::DroppedFile for Dropped {
 #[test]
 fn project_empty_area_double_click_and_dropped_files_import() {
     let (mut h, _, _) = harness();
-    let png = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/app-icon/hicolor/16x16/apps/ai.storyteller.effectcraft.png");
+    let png = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/app-icon/hicolor/16x16/apps/ch.mixel.effects.png");
     let png = std::fs::canonicalize(png).unwrap().to_string_lossy().to_string();
     let asked = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let (a, p) = (asked.clone(), png.clone());

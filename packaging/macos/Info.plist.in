@@ -7,13 +7,13 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>EffectCraft</string>
+  <string>MIXEL Effects</string>
   <key>CFBundleName</key>
-  <string>EffectCraft</string>
+  <string>MIXEL Effects</string>
   <key>CFBundleExecutable</key>
-  <string>EffectCraft</string>
+  <string>MIXEL Effects</string>
   <key>CFBundleIdentifier</key>
-  <string>ai.storyteller.effectcraft</string>
+  <string>ch.mixel.effects</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -29,7 +29,7 @@
   <key>EffectCraftBuildCommit</key>
   <string>@BUILD_SHA@</string>
   <key>CFBundleIconFile</key>
-  <string>EffectCraft</string>
+  <string>MIXEL Effects</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.graphics-design</string>
   <!-- Must match MACOSX_DEPLOYMENT_TARGET in package.sh. Big Sur is the first release on
@@ -43,23 +43,23 @@
   <key>NSRequiresAquaSystemAppearance</key>
   <false/>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © the EffectCraft authors. MIT OR Apache-2.0.</string>
+  <string>Copyright © the MIXEL Effects authors. MIT OR Apache-2.0.</string>
 
   <!-- Effectcraft's own format. -->
   <key>UTExportedTypeDeclarations</key>
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.effectcraft.document</string>
+      <string>ch.mixel.effects.document</string>
       <key>UTTypeDescription</key>
-      <string>EffectCraft Document</string>
+      <string>MIXEL Effects Document</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>public.data</string>
         <string>public.image</string>
       </array>
       <key>UTTypeIconFile</key>
-      <string>EffectCraft</string>
+      <string>MIXEL Effects</string>
       <key>UTTypeTagSpecification</key>
       <dict>
         <key>public.filename-extension</key>
@@ -90,7 +90,7 @@
     </dict>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.effectcraft.qoi</string>
+      <string>ch.mixel.effects.qoi</string>
       <key>UTTypeDescription</key>
       <string>QOI Image</string>
       <key>UTTypeConformsTo</key>

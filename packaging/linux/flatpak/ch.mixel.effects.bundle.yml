@@ -9,9 +9,9 @@
 # Wayland, xkbcommon, ALSA and Vulkan at runtime; the freedesktop runtime has all of them, and
 # the GPU driver comes from its org.freedesktop.Platform.GL extension.
 #
-# ai.storyteller.effectcraft.yml (same directory) is the from-source manifest for Flathub. Keep
+# ch.mixel.effects.yml (same directory) is the from-source manifest for Flathub. Keep
 # runtime-version and finish-args identical in both (packaging-lint checks this).
-id: ai.storyteller.effectcraft
+id: ch.mixel.effects
 runtime: org.freedesktop.Platform
 runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
@@ -46,10 +46,10 @@ modules:
     build-commands:
       - install -Dm755 bin/effectcraft /app/bin/effectcraft
       - install -Dm755 bin/effectcraft-cli /app/bin/effectcraft-cli
-      - install -Dm644 share/applications/ai.storyteller.effectcraft.desktop /app/share/applications/ai.storyteller.effectcraft.desktop
-      - install -Dm644 share/mime/packages/ai.storyteller.effectcraft.xml /app/share/mime/packages/ai.storyteller.effectcraft.xml
+      - install -Dm644 share/applications/ch.mixel.effects.desktop /app/share/applications/ch.mixel.effects.desktop
+      - install -Dm644 share/mime/packages/ch.mixel.effects.xml /app/share/mime/packages/ch.mixel.effects.xml
       # Already has the release's version and date substituted by package.sh.
-      - install -Dm644 share/metainfo/ai.storyteller.effectcraft.metainfo.xml /app/share/metainfo/ai.storyteller.effectcraft.metainfo.xml
+      - install -Dm644 share/metainfo/ch.mixel.effects.metainfo.xml /app/share/metainfo/ch.mixel.effects.metainfo.xml
       - mkdir -p /app/share/icons /app/share/doc && cp -R share/icons/hicolor /app/share/icons/ && cp -R share/doc/effectcraft /app/share/doc/
     sources:
       - type: dir

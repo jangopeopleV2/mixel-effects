@@ -1,4 +1,4 @@
-//! Menu labels for EffectCraft's own engine tree in each translated language. Commands remain
+//! Menu labels for MIXEL Effects's own engine tree in each translated language. Commands remain
 //! locale-independent. A command plus its source label distinguishes parameterised entries (e.g.
 //! blend modes). Empty command keys identify submenus. Dynamic filenames, user names and effect
 //! plug-in names remain verbatim; these catalogs only translate the fixed menu tree.
@@ -48,7 +48,7 @@ pub(crate) fn ukrainian(app: &EffectcraftApp) -> bool {
 }
 
 /// Settings ▸ General ▸ Language ▸ Match System: the operating system's interface language
-/// where EffectCraft has it, else English (#229), as After Effects installs in the system's
+/// where MIXEL Effects has it, else English (#229), as After Effects installs in the system's
 /// language. The browser build stays in English because it has no system-locale probe.
 fn system_language() -> &'static str {
     #[cfg(not(target_arch = "wasm32"))]
@@ -61,7 +61,7 @@ fn system_language() -> &'static str {
     supported(None)
 }
 
-/// The language EffectCraft shows for a BCP 47 locale (`ja-JP` → `ja`, `zh-Hans-CN` → `zh-hans`,
+/// The language MIXEL Effects shows for a BCP 47 locale (`ja-JP` → `ja`, `zh-Hans-CN` → `zh-hans`,
 /// `zh-TW` → `zh-hant`, `uk-UA` → `uk`).
 fn supported(locale: Option<&str>) -> &'static str {
     let Some(locale) = locale else { return "en" };
@@ -179,8 +179,8 @@ pub(crate) fn submenu(app: &EffectcraftApp, source: &str, shown: String) -> Stri
 /// Chinese After Effects documentation and the catalogs the sibling Craft apps ship; see the
 /// pull request for the rows taken from #321.
 const SIMPLIFIED_CHINESE: &[(&str, &str, &str)] = &[
-    ("", "EffectCraft", "EffectCraft"),
-    ("app.about", "About EffectCraft...", "关于 EffectCraft..."),
+    ("", "MIXEL Effects", "MIXEL Effects"),
+    ("app.about", "About MIXEL Effects...", "关于 MIXEL Effects..."),
     ("", "Settings...", "设置..."),
     ("app.settings", "General...", "常规..."),
     ("app.settings", "Startup & Repair...", "启动和修复..."),
@@ -199,10 +199,10 @@ const SIMPLIFIED_CHINESE: &[(&str, &str, &str)] = &[
     ("app.settings", "Video...", "视频..."),
     ("app.settings", "3D...", "3D..."),
     ("app.settings", "Scripting & Expressions...", "脚本和表达式..."),
-    ("app.hide", "Hide EffectCraft", "隐藏 EffectCraft"),
+    ("app.hide", "Hide MIXEL Effects", "隐藏 MIXEL Effects"),
     ("app.hideOthers", "Hide Others", "隐藏其他"),
     ("app.showAll", "Show All", "全部显示"),
-    ("app.quit", "Quit EffectCraft", "退出 EffectCraft"),
+    ("app.quit", "Quit MIXEL Effects", "退出 MIXEL Effects"),
     ("", "File", "文件"),
     ("", "New", "新建"),
     ("file.newProject", "New Project", "新建项目"),
@@ -779,7 +779,7 @@ const SIMPLIFIED_CHINESE: &[(&str, &str, &str)] = &[
     ("window.panel", "Create Nulls From Paths", "从路径创建空对象"),
     ("window.panel", "VR Comp Editor", "VR 合成编辑器"),
     ("", "Help", "帮助"),
-    ("help.docs", "EffectCraft Help...", "EffectCraft 帮助..."),
+    ("help.docs", "MIXEL Effects Help...", "MIXEL Effects 帮助..."),
     ("help.docs", "Scripting Help...", "脚本帮助..."),
     ("help.docs", "Expression Reference...", "表达式引用..."),
     ("help.docs", "Effect Reference...", "效果参考..."),
@@ -793,8 +793,8 @@ const SIMPLIFIED_CHINESE: &[(&str, &str, &str)] = &[
     ("help.discord", "Join the ArtCraft Discord...", "加入 ArtCraft 的 Discord 社区..."),
     ("help.reportIssue", "Provide Feedback...", "提供反馈..."),
     ("help.website", "ArtCraft Website", "ArtCraft 网站"),
-    ("help.appPage", "EffectCraft Home Page", "EffectCraft 主页"),
-    ("help.github", "EffectCraft on GitHub", "GitHub 上的 EffectCraft"),
+    ("help.appPage", "MIXEL Effects Home Page", "MIXEL Effects 主页"),
+    ("help.github", "MIXEL Effects on GitHub", "GitHub 上的 MIXEL Effects"),
     ("file.openDemoProject", "Open Demo Project", "打开示例项目"),
 ];
 
@@ -802,8 +802,8 @@ const SIMPLIFIED_CHINESE: &[(&str, &str, &str)] = &[
 /// entry per fixed menu row of the engine's menu tree, mirroring `SIMPLIFIED_CHINESE` in the
 /// vocabulary the sibling Craft apps' zh-hant catalogs use.
 const TRADITIONAL_CHINESE: &[(&str, &str, &str)] = &[
-    ("", "EffectCraft", "EffectCraft"),
-    ("app.about", "About EffectCraft...", "關於 EffectCraft..."),
+    ("", "MIXEL Effects", "MIXEL Effects"),
+    ("app.about", "About MIXEL Effects...", "關於 MIXEL Effects..."),
     ("", "Settings...", "設定..."),
     ("app.settings", "General...", "一般..."),
     ("app.settings", "Startup & Repair...", "啟動和修復..."),
@@ -822,10 +822,10 @@ const TRADITIONAL_CHINESE: &[(&str, &str, &str)] = &[
     ("app.settings", "Video...", "視訊..."),
     ("app.settings", "3D...", "3D..."),
     ("app.settings", "Scripting & Expressions...", "指令碼和運算式..."),
-    ("app.hide", "Hide EffectCraft", "隱藏 EffectCraft"),
+    ("app.hide", "Hide MIXEL Effects", "隱藏 MIXEL Effects"),
     ("app.hideOthers", "Hide Others", "隱藏其他"),
     ("app.showAll", "Show All", "全部顯示"),
-    ("app.quit", "Quit EffectCraft", "結束 EffectCraft"),
+    ("app.quit", "Quit MIXEL Effects", "結束 MIXEL Effects"),
     ("", "File", "檔案"),
     ("", "New", "新增"),
     ("file.newProject", "New Project", "新增專案"),
@@ -1402,7 +1402,7 @@ const TRADITIONAL_CHINESE: &[(&str, &str, &str)] = &[
     ("window.panel", "Create Nulls From Paths", "從路徑建立空物件"),
     ("window.panel", "VR Comp Editor", "VR 合成編輯器"),
     ("", "Help", "說明"),
-    ("help.docs", "EffectCraft Help...", "EffectCraft 說明..."),
+    ("help.docs", "MIXEL Effects Help...", "MIXEL Effects 說明..."),
     ("help.docs", "Scripting Help...", "指令碼說明..."),
     ("help.docs", "Expression Reference...", "運算式參考..."),
     ("help.docs", "Effect Reference...", "效果參考..."),
@@ -1416,14 +1416,14 @@ const TRADITIONAL_CHINESE: &[(&str, &str, &str)] = &[
     ("help.discord", "Join the ArtCraft Discord...", "加入 ArtCraft 的 Discord 社群..."),
     ("help.reportIssue", "Provide Feedback...", "提供意見..."),
     ("help.website", "ArtCraft Website", "ArtCraft 網站"),
-    ("help.appPage", "EffectCraft Home Page", "EffectCraft 首頁"),
-    ("help.github", "EffectCraft on GitHub", "GitHub 上的 EffectCraft"),
+    ("help.appPage", "MIXEL Effects Home Page", "MIXEL Effects 首頁"),
+    ("help.github", "MIXEL Effects on GitHub", "GitHub 上的 MIXEL Effects"),
     ("file.openDemoProject", "Open Demo Project", "開啟範例專案"),
 ];
 
 const JAPANESE: &[(&str, &str, &str)] = &[
-    ("", "EffectCraft", "EffectCraft"),
-    ("app.about", "About EffectCraft...", "EffectCraftについて..."),
+    ("", "MIXEL Effects", "MIXEL Effects"),
+    ("app.about", "About MIXEL Effects...", "MIXEL Effectsについて..."),
     ("", "Settings...", "設定..."),
     ("app.settings", "General...", "一般..."),
     ("app.settings", "Startup & Repair...", "起動と修復..."),
@@ -1442,10 +1442,10 @@ const JAPANESE: &[(&str, &str, &str)] = &[
     ("app.settings", "Video...", "ビデオ..."),
     ("app.settings", "3D...", "3D..."),
     ("app.settings", "Scripting & Expressions...", "スクリプトとエクスプレッション..."),
-    ("app.hide", "Hide EffectCraft", "EffectCraftを隠す"),
+    ("app.hide", "Hide MIXEL Effects", "MIXEL Effectsを隠す"),
     ("app.hideOthers", "Hide Others", "ほかを隠す"),
     ("app.showAll", "Show All", "すべてを表示"),
-    ("app.quit", "Quit EffectCraft", "EffectCraftを終了"),
+    ("app.quit", "Quit MIXEL Effects", "MIXEL Effectsを終了"),
     ("", "File", "ファイル"),
     ("", "New", "新規"),
     ("file.newProject", "New Project", "新規プロジェクト"),
@@ -2022,7 +2022,7 @@ const JAPANESE: &[(&str, &str, &str)] = &[
     ("window.panel", "Create Nulls From Paths", "パスからヌルを作成"),
     ("window.panel", "VR Comp Editor", "VRコンポジションエディター"),
     ("", "Help", "ヘルプ"),
-    ("help.docs", "EffectCraft Help...", "EffectCraftヘルプ..."),
+    ("help.docs", "MIXEL Effects Help...", "MIXEL Effectsヘルプ..."),
     ("help.docs", "Scripting Help...", "スクリプトヘルプ..."),
     ("help.docs", "Expression Reference...", "エクスプレッションリファレンス..."),
     ("help.docs", "Effect Reference...", "エフェクトリファレンス..."),
@@ -2036,8 +2036,8 @@ const JAPANESE: &[(&str, &str, &str)] = &[
     ("help.discord", "Join the ArtCraft Discord...", "ArtCraft Discordに参加..."),
     ("help.reportIssue", "Provide Feedback...", "フィードバックを送信..."),
     ("help.website", "ArtCraft Website", "ArtCraftウェブサイト"),
-    ("help.appPage", "EffectCraft Home Page", "EffectCraftホームページ"),
-    ("help.github", "EffectCraft on GitHub", "GitHubのEffectCraft"),
+    ("help.appPage", "MIXEL Effects Home Page", "MIXEL Effectsホームページ"),
+    ("help.github", "MIXEL Effects on GitHub", "GitHubのMIXEL Effects"),
     ("file.openDemoProject", "Open Demo Project", "デモプロジェクトを開く"),
 ];
 
@@ -2045,8 +2045,8 @@ const JAPANESE: &[(&str, &str, &str)] = &[
 /// Ukrainian motion-graphics vocabulary. Product names and technical identifiers stay verbatim.
 /// The (command, source) keys match the other catalogs; no proprietary localization was used.
 const UKRAINIAN: &[(&str, &str, &str)] = &[
-    ("", "EffectCraft", "EffectCraft"),
-    ("app.about", "About EffectCraft...", "Про EffectCraft..."),
+    ("", "MIXEL Effects", "MIXEL Effects"),
+    ("app.about", "About MIXEL Effects...", "Про MIXEL Effects..."),
     ("", "Settings...", "Налаштування..."),
     ("app.settings", "General...", "Загальні..."),
     ("app.settings", "Startup & Repair...", "Запуск і відновлення..."),
@@ -2065,10 +2065,10 @@ const UKRAINIAN: &[(&str, &str, &str)] = &[
     ("app.settings", "Video...", "Відео..."),
     ("app.settings", "3D...", "3D..."),
     ("app.settings", "Scripting & Expressions...", "Скрипти та вирази..."),
-    ("app.hide", "Hide EffectCraft", "Приховати EffectCraft"),
+    ("app.hide", "Hide MIXEL Effects", "Приховати MIXEL Effects"),
     ("app.hideOthers", "Hide Others", "Приховати решту"),
     ("app.showAll", "Show All", "Показати все"),
-    ("app.quit", "Quit EffectCraft", "Вийти з EffectCraft"),
+    ("app.quit", "Quit MIXEL Effects", "Вийти з MIXEL Effects"),
     ("", "File", "Файл"),
     ("", "New", "Створити"),
     ("file.newProject", "New Project", "Новий проєкт"),
@@ -2645,7 +2645,7 @@ const UKRAINIAN: &[(&str, &str, &str)] = &[
     ("window.panel", "Create Nulls From Paths", "Створення нульових об’єктів із контурів"),
     ("window.panel", "VR Comp Editor", "Редактор композицій VR"),
     ("", "Help", "Довідка"),
-    ("help.docs", "EffectCraft Help...", "Довідка EffectCraft..."),
+    ("help.docs", "MIXEL Effects Help...", "Довідка MIXEL Effects..."),
     ("help.docs", "Scripting Help...", "Довідка зі скриптів..."),
     ("help.docs", "Expression Reference...", "Довідник виразів..."),
     ("help.docs", "Effect Reference...", "Довідник ефектів..."),
@@ -2659,8 +2659,8 @@ const UKRAINIAN: &[(&str, &str, &str)] = &[
     ("help.discord", "Join the ArtCraft Discord...", "Приєднатися до Discord ArtCraft..."),
     ("help.reportIssue", "Provide Feedback...", "Надіслати відгук..."),
     ("help.website", "ArtCraft Website", "Вебсайт ArtCraft"),
-    ("help.appPage", "EffectCraft Home Page", "Домашня сторінка EffectCraft"),
-    ("help.github", "EffectCraft on GitHub", "EffectCraft на GitHub"),
+    ("help.appPage", "MIXEL Effects Home Page", "Домашня сторінка MIXEL Effects"),
+    ("help.github", "MIXEL Effects on GitHub", "MIXEL Effects на GitHub"),
     ("file.openDemoProject", "Open Demo Project", "Відкрити демонстраційний проєкт"),
 ];
 

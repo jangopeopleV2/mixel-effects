@@ -1,5 +1,5 @@
-asset:        ai.storyteller.effectcraft.png
-title:        EffectCraft app icon, Linux hicolor 512x512
+asset:        ch.mixel.effects.png
+title:        EffectCraft app icon, Linux hicolor 48x48
 author:       EffectCraft contributors (drawing by the project owner in ArtCraft)
 source:       original work
 license:      MIT OR Apache-2.0

@@ -1,5 +1,5 @@
 //! Desktop integration for the AppImage. Wayland compositors (GNOME, KDE…) show a window's icon
-//! from the desktop entry named by its app ID (`ai.storyteller.effectcraft.desktop`). The .deb,
+//! from the desktop entry named by its app ID (`ch.mixel.effects.desktop`). The .deb,
 //! .rpm and Flatpak packages install one; an AppImage installs nothing, so its window got the
 //! generic icon. Started from an AppImage (`$APPIMAGE`), the app adds a hidden entry
 //! (`NoDisplay=true`: no menu item) pointing at it and its icon under the user's data folder
@@ -9,10 +9,10 @@
 
 use std::path::{Path, PathBuf};
 
-pub const APP_ID: &str = "ai.storyteller.effectcraft";
+pub const APP_ID: &str = "ch.mixel.effects";
 
 /// Marks entries this module wrote (it never touches others).
-const MARKER: &str = "X-EffectCraft-AppImage=true";
+const MARKER: &str = "X-MIXEL Effects-AppImage=true";
 
 /// A path as one `Exec` argument (desktop entry spec: quoted, with `"`, `` ` ``, `$` and `\`
 /// escaped; `%` doubled so it isn't a field code).
@@ -40,7 +40,7 @@ pub fn exec_arg(path: &str) -> String {
 /// The hidden desktop entry for the AppImage at `appimage`.
 pub fn entry(appimage: &str) -> String {
     format!(
-        "[Desktop Entry]\nType=Application\nName=EffectCraft\nComment=Motion graphics and visual effects compositor\nExec={} %F\nIcon={APP_ID}\nTerminal=false\nStartupWMClass={APP_ID}\nNoDisplay=true\n{MARKER}\n",
+        "[Desktop Entry]\nType=Application\nName=MIXEL Effects\nComment=Motion graphics and visual effects compositor\nExec={} %F\nIcon={APP_ID}\nTerminal=false\nStartupWMClass={APP_ID}\nNoDisplay=true\n{MARKER}\n",
         exec_arg(appimage)
     )
 }
@@ -96,10 +96,10 @@ mod tests {
 
     #[test]
     fn exec_arguments_are_quoted_and_escaped() {
-        assert_eq!(exec_arg("/home/a/EffectCraft.AppImage"), "\"/home/a/EffectCraft.AppImage\"");
+        assert_eq!(exec_arg("/home/a/MIXEL Effects.AppImage"), "\"/home/a/MIXEL Effects.AppImage\"");
         assert_eq!(exec_arg("/a b/$x\"y`z\\w%"), "\"/a b/\\\\$x\\\\\"y\\\\`z\\\\\\\\w%%\"");
-        let e = entry("/opt/EffectCraft.AppImage");
-        assert!(e.contains("Exec=\"/opt/EffectCraft.AppImage\" %F\n") && e.contains("NoDisplay=true\n") && e.contains("Icon=ai.storyteller.effectcraft\n"));
+        let e = entry("/opt/MIXEL Effects.AppImage");
+        assert!(e.contains("Exec=\"/opt/MIXEL Effects.AppImage\" %F\n") && e.contains("NoDisplay=true\n") && e.contains("Icon=ch.mixel.effects\n"));
     }
 
     #[test]
@@ -107,25 +107,25 @@ mod tests {
         let root = std::env::temp_dir().join(format!("ec-appimage-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let (home, system) = (root.join("home"), root.join("system"));
-        let entry_path = home.join("applications/ai.storyteller.effectcraft.desktop");
-        let icon_path = home.join("icons/hicolor/256x256/apps/ai.storyteller.effectcraft.png");
+        let entry_path = home.join("applications/ch.mixel.effects.desktop");
+        let icon_path = home.join("icons/hicolor/256x256/apps/ch.mixel.effects.png");
         // First start: entry and icon written; again: nothing to do.
-        assert!(integrate("/a/EffectCraft.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
+        assert!(integrate("/a/MIXEL Effects.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
         assert_eq!(std::fs::read(&icon_path).unwrap(), b"png");
-        assert!(std::fs::read_to_string(&entry_path).unwrap().contains("Exec=\"/a/EffectCraft.AppImage\""));
-        assert!(!integrate("/a/EffectCraft.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
+        assert!(std::fs::read_to_string(&entry_path).unwrap().contains("Exec=\"/a/MIXEL Effects.AppImage\""));
+        assert!(!integrate("/a/MIXEL Effects.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
         // The AppImage moved: the entry follows it.
-        assert!(integrate("/b/EffectCraft.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
-        assert!(std::fs::read_to_string(&entry_path).unwrap().contains("Exec=\"/b/EffectCraft.AppImage\""));
+        assert!(integrate("/b/MIXEL Effects.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
+        assert!(std::fs::read_to_string(&entry_path).unwrap().contains("Exec=\"/b/MIXEL Effects.AppImage\""));
         // The user's own entry is never replaced.
         std::fs::write(&entry_path, "[Desktop Entry]\nName=Mine\n").unwrap();
-        assert!(!integrate("/c/EffectCraft.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
+        assert!(!integrate("/c/MIXEL Effects.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
         assert_eq!(std::fs::read_to_string(&entry_path).unwrap(), "[Desktop Entry]\nName=Mine\n");
         // An installed package provides the entry: nothing is written.
         let _ = std::fs::remove_dir_all(&home);
         std::fs::create_dir_all(system.join("applications")).unwrap();
-        std::fs::write(system.join("applications/ai.storyteller.effectcraft.desktop"), "x").unwrap();
-        assert!(!integrate("/a/EffectCraft.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
+        std::fs::write(system.join("applications/ch.mixel.effects.desktop"), "x").unwrap();
+        assert!(!integrate("/a/MIXEL Effects.AppImage", &home, std::slice::from_ref(&system), b"png").unwrap());
         assert!(!entry_path.exists());
         let _ = std::fs::remove_dir_all(&root);
     }

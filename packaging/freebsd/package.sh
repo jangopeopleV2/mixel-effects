@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and package EffectCraft for FreeBSD:
+# Build and package MIXEL Effects for FreeBSD:
 #
 #   $DIST/effectcraft-<version>-freebsd-x86_64.tar.gz   a /usr/local-style tree:
 #       effectcraft-<version>-freebsd-x86_64/{bin, share/applications, share/icons, share/mime,
@@ -16,7 +16,7 @@ set -euo pipefail
 # shellcheck source=../env.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../env.sh"
 LINUX="$ROOT/packaging/linux"
-APP_ID=ai.storyteller.effectcraft
+APP_ID=ch.mixel.effects
 
 SKIP_BUILD=0
 DRY_RUN=0
@@ -42,7 +42,7 @@ if [ "$DRY_RUN" = 0 ] && [ "$(uname -s)" != FreeBSD ]; then
 fi
 BASENAME="effectcraft-$VERSION-freebsd-$ARCH"
 
-echo "==> EffectCraft $VERSION for FreeBSD $ARCH"
+echo "==> MIXEL Effects $VERSION for FreeBSD $ARCH"
 
 # The release VM has 12 GB; full parallelism on the biggest crates runs it out of memory.
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}"

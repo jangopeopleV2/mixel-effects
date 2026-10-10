@@ -241,7 +241,7 @@ pub fn from_xml(text: &str) -> Result<String, String> {
     let mut p = P { s: text.trim_start_matches('\u{feff}'), i: 0 };
     let (root, _, _) = p.open()?;
     if root != ROOT {
-        return Err(format!("not an EffectCraft XML project (root <{root}>)"));
+        return Err(format!("not an MIXEL Effects XML project (root <{root}>)"));
     }
     let v = p.value()?;
     p.close(ROOT)?;

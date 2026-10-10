@@ -1,4 +1,4 @@
-// EffectCraft audio output (AudioWorklet): plays interleaved stereo blocks posted by the page
+// MIXEL Effects audio output (AudioWorklet): plays interleaved stereo blocks posted by the page
 // (src/audio.rs feeds them from the preview mixdown). Running dry plays silence, reported back
 // as underrun frames.
 class EffectcraftOutput extends AudioWorkletProcessor {

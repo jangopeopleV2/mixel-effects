@@ -1,6 +1,6 @@
 [package]
 name = "effectcraft-automation"
-description = "EffectCraft MCP server (JSON-RPC 2.0 over stdio) over a headless session or bridged to the running app's control channel"
+description = "MIXEL Effects MCP server (JSON-RPC 2.0 over stdio) over a headless session or bridged to the running app's control channel"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

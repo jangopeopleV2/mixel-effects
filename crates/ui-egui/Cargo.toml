@@ -1,6 +1,6 @@
 [package]
 name = "effectcraft-ui-egui"
-description = "The EffectCraft egui frontend (swappable): docking panels, composition viewer, timeline, effect controls, control channel"
+description = "The MIXEL Effects egui frontend (swappable): docking panels, composition viewer, timeline, effect controls, control channel"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

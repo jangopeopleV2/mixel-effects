@@ -43,14 +43,14 @@ pub(crate) fn open(s: &mut Session, p: &Value) -> Result<Value> {
     let text = String::from_utf8(bytes).map_err(|_| EngineError::Other("not a text project file".into()))?;
     // XML copies (File ▸ Save a Copy As XML…) open like the JSON project.
     let text = if crate::xml_project::is_xml(&text) { crate::xml_project::from_xml(&text).map_err(EngineError::Other)? } else { text };
-    let proj = Project::from_json(&text).map_err(|e| EngineError::Other(format!("{path} is not a project EffectCraft can open: {e}")))?;
+    let proj = Project::from_json(&text).map_err(|e| EngineError::Other(format!("{path} is not a project MIXEL Effects can open: {e}")))?;
     s.replace_project(proj, Some(path.to_string()));
     s.note_project_path(path);
-    // Written by a newer EffectCraft: what this version doesn't know would be lost on saving.
+    // Written by a newer MIXEL Effects: what this version doesn't know would be lost on saving.
     let saved_by = effectcraft_project::saved_by(&text);
     if let Some(v) = saved_by.as_deref().filter(|v| effectcraft_project::is_newer_version(v, effectcraft_project::APP_VERSION)) {
         s.toast(format!(
-            "This project was saved by EffectCraft {v}, newer than this version ({}). Settings this version doesn't know are lost if you save it.",
+            "This project was saved by MIXEL Effects {v}, newer than this version ({}). Settings this version doesn't know are lost if you save it.",
             effectcraft_project::APP_VERSION
         ));
     }

@@ -1,6 +1,6 @@
-//! Movie export: FilmCraft H.264, HEVC (`effectcraft-hevcenc`) and AV1 (`effectcraft-av1enc`)
+//! Movie export: MIXEL Film H.264, HEVC (`effectcraft-hevcenc`) and AV1 (`effectcraft-av1enc`)
 //! → MP4 (+ AAC) and ProRes → MOV (+ PCM), muxed by
-//! FilmCraft's ISO BMFF / QuickTime writer.
+//! MIXEL Film's ISO BMFF / QuickTime writer.
 
 use std::io::Write;
 

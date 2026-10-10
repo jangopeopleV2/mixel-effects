@@ -1,4 +1,4 @@
-//! The VP9 intra encoder (`effectcraft-vp9enc`) round-trips through FilmCraft's VP9 decoder (and
+//! The VP9 intra encoder (`effectcraft-vp9enc`) round-trips through MIXEL Film's VP9 decoder (and
 //! ffmpeg as an external oracle when installed): sizes, lossless exactness, PSNR.
 
 use effectcraft_vp9enc::{EncoderConfig, Vp9Encoder};
@@ -343,7 +343,7 @@ fn frames_never_end_in_a_superframe_marker() {
         }
     }
     let Some((w, h, q, frames, recon)) = padded else { panic!("no frame needed the padding: widen the search") };
-    // The padded frames decode exactly, with FilmCraft's decoder and with ffmpeg.
+    // The padded frames decode exactly, with MIXEL Film's decoder and with ffmpeg.
     let mut d = Decoder::new();
     for (t, (f, r)) in frames.iter().zip(&recon).enumerate() {
         let mut pics = d.decode(f, t as i64).unwrap_or_else(|e| panic!("{w}x{h} q{q} frame {t}: {e:?}"));

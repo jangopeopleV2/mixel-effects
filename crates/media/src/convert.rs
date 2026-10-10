@@ -52,13 +52,13 @@ impl AlphaOp {
     }
 }
 
-/// Convert a FilmCraft frame to an [`Image`].
+/// Convert a MIXEL Film frame to an [`Image`].
 #[cfg(test)]
 pub(crate) fn frame_to_image(f: &VideoFrame, op: AlphaOp) -> Image {
     frame_to_image_in(f, op, Vec::new())
 }
 
-/// Convert a FilmCraft frame to an [`Image`], reusing `buf`'s allocation when it is large enough
+/// Convert a MIXEL Film frame to an [`Image`], reusing `buf`'s allocation when it is large enough
 /// (every pixel is overwritten, so a recycled frame's contents do not matter).
 pub(crate) fn frame_to_image_in(f: &VideoFrame, op: AlphaOp, mut buf: Vec<Px>) -> Image {
     let (w, h) = (f.width as usize, f.height as usize);

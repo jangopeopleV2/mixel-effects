@@ -1,5 +1,5 @@
 //! Help ▸ Enable Logging / Reveal Logging File: a `log` logger that, while enabled, appends
-//! every record to `Logs/EffectCraft Log.txt` in the settings folder (or the temporary folder),
+//! every record to `Logs/MIXEL Effects Log.txt` in the settings folder (or the temporary folder),
 //! and always keeps the last few hundred warnings and errors in memory for the System
 //! Compatibility Report.
 //!
@@ -112,7 +112,7 @@ pub fn install_panic_hook() {
 
 /// The log file inside `config_dir` (the settings folder), or the temporary folder.
 pub fn log_path(config_dir: Option<&Path>) -> PathBuf {
-    config_dir.map(Path::to_path_buf).unwrap_or_else(std::env::temp_dir).join("Logs").join("EffectCraft Log.txt")
+    config_dir.map(Path::to_path_buf).unwrap_or_else(std::env::temp_dir).join("Logs").join("MIXEL Effects Log.txt")
 }
 
 /// Turn file logging on (writing to `file`) or off.

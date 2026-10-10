@@ -1,4 +1,4 @@
-//! Round trip of `effectcraft-opusenc` through FilmCraft's spec-derived Opus decoder, plus an
+//! Round trip of `effectcraft-opusenc` through MIXEL Film's spec-derived Opus decoder, plus an
 //! ffmpeg oracle (skipped when ffmpeg is not installed) reading an Ogg Opus file written here.
 
 use std::process::Command;

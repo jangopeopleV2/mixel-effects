@@ -11,7 +11,7 @@ Trained models for Roto Brush and face tracking, each kind behind one swappable 
   which are the tracker's landmarks and which trace the face outline, so the tracker never
   depends on one model's layout. The classical face tracker stays built in as the fallback.
 - **`MODELS`**: the registry. Every entry must be open source under a licence compatible with
-  EffectCraft's MIT OR Apache-2.0 (`ALLOWED_LICENCES`), with its task, authors, homepage, licence
+  MIXEL Effects's MIT OR Apache-2.0 (`ALLOWED_LICENCES`), with its task, authors, homepage, licence
   URL, the official weights URL, size and SHA-256. `load` refuses anything else.
 - **Weights are never bundled.** They are downloaded on demand (or installed from a file) by the
   engine (`roto.model.*` / `face.model.*`, Settings ▸ Roto Brush / Face Tracking), verified

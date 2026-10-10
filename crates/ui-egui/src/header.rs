@@ -27,8 +27,8 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let brand = Rect::from_min_size(pos2(x, cy - 12.0), vec2(24.0, 24.0));
     paint_logo(&p, brand);
     let bresp = ui.interact(brand, egui::Id::new("brand"), Sense::click());
-    app.auto.add("header.about", brand, "About EffectCraft");
-    if bresp.on_hover_text(tr("About EffectCraft")).clicked() {
+    app.auto.add("header.about", brand, "About MIXEL Effects");
+    if bresp.on_hover_text(tr("About MIXEL Effects")).clicked() {
         app.dialog = Some(Dialog::About);
     }
     x += 32.0;
@@ -189,7 +189,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
     }
     rx = discord.min.x - 6.0;
     for (id, icon, tip, cmd) in
-        [("hdr-github", Icon::Code, "EffectCraft on GitHub", "help.github"), ("hdr-web", Icon::Globe, "EffectCraft on getartcraft.com", "help.appPage")]
+        [("hdr-github", Icon::Code, "MIXEL Effects on GitHub", "help.github"), ("hdr-web", Icon::Globe, "MIXEL Effects project page", "help.appPage")]
     {
         let r = Rect::from_min_max(pos2(rx - 26.0, cy - 13.0), pos2(rx, cy + 13.0));
         if widgets::icon_button(ui, r, icon, false, &t, egui::Id::new(id)).on_hover_text(tip).clicked() {

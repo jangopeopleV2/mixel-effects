@@ -487,7 +487,7 @@ fn perf_sequential_1080p_h264() {
     let Some(p) = h264_mp4() else { return };
     let f = probe(&p).expect("probe");
     let n = 60;
-    // FilmCraft alone (decode only, YUV frames)
+    // MIXEL Film alone (decode only, YUV frames)
     let bytes: Arc<[u8]> = std::fs::read(&p).expect("read").into();
     let src = filmcraft_codecs::open_bytes("a.mp4", bytes).expect("open");
     let t0 = Instant::now();

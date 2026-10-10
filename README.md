@@ -1,3 +1,12 @@
+<!-- MIXEL-HEADER -->
+# MIXEL Effects
+
+**MIXEL Effects** is part of the MIXEL creative suite: an open-source, pure-Rust alternative to Adobe After Effects for macOS, Windows, Linux and the web.
+
+Maintained by [MIXEL](https://mixel.ch). Based on [storytold/effectcraft](https://github.com/storytold/effectcraft) from the ArtCraft Crafting Apps by Brandon Thomas; licensed under Apache-2.0 / MIT (see `LICENSE-APACHE`, `LICENSE-MIT`, `NOTICE`). Upstream changes are merged from the `upstream` remote and re-branded with `rebrand.sh`.
+
+---
+
 <p align="center">
   <a href="https://getartcraft.com/">
     <picture>
@@ -8,7 +17,7 @@
 </p>
 
 
-<h1 align="center">EffectCraft</h1>
+<h1 align="center">MIXEL Effects</h1>
 
 <p align="center">
   <b>Motion graphics and visual effects; an open-source, clean-room reimplementation of Adobe After Effects, rebuilt in pure Rust.</b>
@@ -31,7 +40,7 @@
 </p>
 
 <p align="center">
-  <a href="https://getartcraft.com/apps/effectcraft"><b>EffectCraft on getartcraft.com</b></a> ·
+  <a href="https://getartcraft.com/apps/effectcraft"><b>MIXEL Effects on getartcraft.com</b></a> ·
   <a href="https://getartcraft.com/">ArtCraft</a> ·
   <a href="https://getartcraft.com/apps">All Crafting Apps</a>
 </p>
@@ -39,7 +48,7 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/effectcraft-hero.png" alt="EffectCraft's main window: the animated demo composition in the Composition panel, the Project panel, a Timeline with text, shape and solid layers, and the Properties panel showing the selected text layer's transform, font and paragraph settings" width="100%">
+  <img src="docs/images/effectcraft-hero.png" alt="MIXEL Effects's main window: the animated demo composition in the Composition panel, the Project panel, a Timeline with text, shape and solid layers, and the Properties panel showing the selected text layer's transform, font and paragraph settings" width="100%">
 </p>
 
 > [!NOTE]
@@ -61,9 +70,9 @@
   <a href="#license-and-credits">License</a>
 </p>
 
-## What EffectCraft is
+## What MIXEL Effects is
 
-EffectCraft is for animated titles, motion graphics and compositing work: the kind of thing
+MIXEL Effects is for animated titles, motion graphics and compositing work: the kind of thing
 people reach for After Effects to do. You build a composition out of layers (solids, shapes,
 text, footage, other compositions), animate their properties with keyframes, stack effects on
 them and render the result.
@@ -79,8 +88,8 @@ then to go further in a few places where it matters to us:
 - **Everything is scriptable.** Every menu item, timeline drag and property edit goes through one
   command registry, so the same actions are reachable from a command line, a JSON control
   channel and an MCP server for agents.
-- **No FFmpeg.** Video and audio decoding and encoding are pure Rust: FilmCraft's codecs and
-  EffectCraft's own VP9, AV1, HEVC and Opus encoders.
+- **No FFmpeg.** Video and audio decoding and encoding are pure Rust: MIXEL Film's codecs and
+  MIXEL Effects's own VP9, AV1, HEVC and Opus encoders.
 
 ## Animate
 
@@ -151,7 +160,7 @@ MP4, **WebM** (VP9 with inter frames and alpha, or AV1; Opus audio), PNG, JPEG, 
 rendering with 3:2 pulldown, effect/solo/guide/depth overrides, crop, region of interest and
 resize, Render Settings and Output Module templates with defaults, post-render actions, storage
 overflow and render logs. The same queue runs from the command line. Every encoder is pure
-Rust (FilmCraft's H.264, ProRes and AAC; EffectCraft's own VP9, AV1, HEVC and Opus); there is no
+Rust (MIXEL Film's H.264, ProRes and AAC; MIXEL Effects's own VP9, AV1, HEVC and Opus); there is no
 FFmpeg inside.
 
 **Lottie** goes both ways: File ▸ Export ▸ Lottie JSON… writes a composition (precomps, shape,
@@ -191,7 +200,7 @@ both programs are ARM64 and runs the command-line tool there, but it doesn't ope
 or run the test suite natively on ARM64 yet, so please report anything that behaves differently.
 
 On Gentoo, the community [::snakebyte overlay](https://github.com/switch87/snakebyte-overlay) packages
-the Linux release as `media-video/effectcraft-bin` (not maintained by the EffectCraft team):
+the Linux release as `media-video/effectcraft-bin` (not maintained by the MIXEL Effects team):
 
 ```sh
 eselect repository add snakebyte git https://github.com/switch87/snakebyte-overlay.git
@@ -219,13 +228,13 @@ tests, layering, asset attribution and the WebAssembly build). See [CONTRIBUTING
 
 ## Where it stands
 
-EffectCraft is young: its first commit was on 1 October 2026. Nearly every After Effects feature
+MIXEL Effects is young: its first commit was on 1 October 2026. Nearly every After Effects feature
 exists, including all of its effects, but existing is not the same as behaving exactly like After
 Effects, and we haven't measured that yet. Today it's a good place to try things and to tell us
 what breaks. It isn't yet a replacement for After Effects on client work. In particular:
 
 - **After Effects projects can't be opened.** Projects are saved as `.ecproj`, readable versioned
-  JSON, but EffectCraft can't open `.aep` / `.aepx` files, and After Effects plug-ins don't run.
+  JSON, but MIXEL Effects can't open `.aep` / `.aepx` files, and After Effects plug-ins don't run.
 - **Behaviour still differs from After Effects in places.** Nothing yet compares our renders with
   After Effects automatically, so please report differences.
 - **macOS is the most tested platform.** Linux and Windows users have hit basic interaction
@@ -247,12 +256,12 @@ send us right now.
   from Adobe's files, icons, presets or code. No code is copied from GPL projects. The full rules
   are in [AGENTS.md](AGENTS.md).
 - **Private by default.** No telemetry, and no network access unless you ask for it.
-- **One family.** EffectCraft shares its time model and text engine design with FilmCraft, and
+- **One family.** MIXEL Effects shares its time model and text engine design with MIXEL Film, and
   gets its video and audio codecs from it.
 
 ## Downloads
 
-**New to EffectCraft?** Download it from the [EffectCraft page on getartcraft.com](https://getartcraft.com/apps/effectcraft). That's the easiest way to install it.
+**New to MIXEL Effects?** Download it from the [MIXEL Effects page on getartcraft.com](https://getartcraft.com/apps/effectcraft). That's the easiest way to install it.
 
 **Want a specific build or format?** On GitHub, the [latest release](https://github.com/storytold/effectcraft/releases/latest) has every build listed below, and [all releases](https://github.com/storytold/effectcraft/releases) has earlier versions and their notes. `<ver>` in the file names is the version number, and `SHA256SUMS.txt` lists a checksum for every file.
 
@@ -297,19 +306,19 @@ Installers and executables are code-signed.
 
 ## The Crafting Apps
 
-EffectCraft is one of the **Crafting Apps**: free, open-source creative tools from the
+MIXEL Effects is one of the **Crafting Apps**: free, open-source creative tools from the
 [ArtCraft](https://getartcraft.com/) team, each written from scratch in Rust and each able to
 stand on its own.
 
 | | App | What it's for | Code | Learn more |
 |:-:|---|---|---|---|
-| <img src="https://raw.githubusercontent.com/storytold/photocraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.photocraft.png" alt="" width="32" height="32"> | **PhotoCraft** | Image editing: layers, masks, type and real PSD files | [GitHub](https://github.com/storytold/photocraft) | [Website](https://getartcraft.com/apps/photocraft) |
-| <img src="https://raw.githubusercontent.com/storytold/vectorcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.vectorcraft.png" alt="" width="32" height="32"> | **VectorCraft** | Vector illustration | [GitHub](https://github.com/storytold/vectorcraft) | [Website](https://getartcraft.com/apps/vectorcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/filmcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.filmcraft.png" alt="" width="32" height="32"> | **FilmCraft** | Video editing, color and sound | [GitHub](https://github.com/storytold/filmcraft) | [Website](https://getartcraft.com/apps/filmcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/lightcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.lightcraft.png" alt="" width="32" height="32"> | **LightCraft** | Photo library and raw development | [GitHub](https://github.com/storytold/lightcraft) | [Website](https://getartcraft.com/apps/lightcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/pdfcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.pdfcraft.png" alt="" width="32" height="32"> | **PdfCraft** | Reading, organizing and protecting PDFs | [GitHub](https://github.com/storytold/pdfcraft) | [Website](https://getartcraft.com/apps/pdfcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/effectcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.effectcraft.png" alt="" width="32" height="32"> | **EffectCraft** | **Motion graphics and visual effects · you are here** | [GitHub](https://github.com/storytold/effectcraft) | [Website](https://getartcraft.com/apps/effectcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/designcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.designcraft.png" alt="" width="32" height="32"> | **DesignCraft** | Page layout and publishing | [GitHub](https://github.com/storytold/designcraft) | [Website](https://getartcraft.com/apps/designcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/photocraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.photo.png" alt="" width="32" height="32"> | **MIXEL Photo** | Image editing: layers, masks, type and real PSD files | [GitHub](https://github.com/storytold/photocraft) | [Website](https://getartcraft.com/apps/photocraft) |
+| <img src="https://raw.githubusercontent.com/storytold/vectorcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.vector.png" alt="" width="32" height="32"> | **MIXEL Vector** | Vector illustration | [GitHub](https://github.com/storytold/vectorcraft) | [Website](https://getartcraft.com/apps/vectorcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/filmcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.film.png" alt="" width="32" height="32"> | **MIXEL Film** | Video editing, color and sound | [GitHub](https://github.com/storytold/filmcraft) | [Website](https://getartcraft.com/apps/filmcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/lightcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.light.png" alt="" width="32" height="32"> | **MIXEL Light** | Photo library and raw development | [GitHub](https://github.com/storytold/lightcraft) | [Website](https://getartcraft.com/apps/lightcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/pdfcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.print.png" alt="" width="32" height="32"> | **MIXEL Print** | Reading, organizing and protecting PDFs | [GitHub](https://github.com/storytold/pdfcraft) | [Website](https://getartcraft.com/apps/pdfcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/effectcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.effects.png" alt="" width="32" height="32"> | **MIXEL Effects** | **Motion graphics and visual effects · you are here** | [GitHub](https://github.com/storytold/effectcraft) | [Website](https://getartcraft.com/apps/effectcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/designcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.design.png" alt="" width="32" height="32"> | **MIXEL Design** | Page layout and publishing | [GitHub](https://github.com/storytold/designcraft) | [Website](https://getartcraft.com/apps/designcraft) |
 
 And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video studio for artists who want real control.
 
@@ -332,23 +341,23 @@ And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video stud
   <a href="https://discord.gg/artcraft"><b>discord.gg/artcraft</b></a> ·
   <a href="https://getartcraft.com/">getartcraft.com</a> ·
   <a href="https://getartcraft.com/apps">The Crafting Apps</a> ·
-  <a href="https://getartcraft.com/apps/effectcraft">EffectCraft</a>
+  <a href="https://getartcraft.com/apps/effectcraft">MIXEL Effects</a>
 </p>
 
 ## License and credits
 
-EffectCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
-Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors. Required notices are in [NOTICE](NOTICE).
+MIXEL Effects is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+Copyright (c) 2026 ArtCraft Team and the MIXEL Effects contributors. Required notices are in [NOTICE](NOTICE).
 
 Bundled fonts, icons, images and other assets keep their own open licenses; each one is listed
 with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md).
 
 The ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the
 ArtCraft Team and are not covered by this license. They may be used only unmodified, and only as
-part of this repository and EffectCraft, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
+part of this repository and MIXEL Effects, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
 Forks and modified versions must remove them.
 
-<sub>Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. EffectCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
+<sub>Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. MIXEL Effects is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
 
 <p align="center">
   <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>
