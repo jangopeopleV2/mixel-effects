@@ -58,6 +58,8 @@ pub struct FaceInfo {
     /// be requested the way After Effects scripts name fonts.
     pub full_name: String,
     pub postscript: Option<String>,
+    /// The face has variation axes (an `fvar` table), read from the table directory at scan time.
+    pub variable: bool,
 }
 
 /// Something that can list fonts (system folders, a web font picker, a project's font folder…).
@@ -87,15 +89,20 @@ impl DirectorySource {
             if let Some(l) = std::env::var_os("LOCALAPPDATA") {
                 dirs.push(PathBuf::from(l).join("Microsoft\\Windows\\Fonts"));
             }
-        } else if cfg!(unix) && !cfg!(target_arch = "wasm32") {
-            dirs.extend(["/usr/share/fonts", "/usr/local/share/fonts"].map(PathBuf::from));
-            if let Some(h) = &home {
-                dirs.push(h.join(".local/share/fonts"));
-                dirs.push(h.join(".fonts"));
-            }
         }
+        // Linux/BSD: the usual folders, the XDG data folders, a Flatpak sandbox's host font
+        // folders (/run/host/…) and the folders the fontconfig configuration names.
+        #[cfg(all(unix, not(target_os = "macos"), not(target_arch = "wasm32")))]
+        dirs.extend(crate::font_dirs::unix_font_dirs(&crate::font_dirs::FontEnv::from_process()));
+        dirs.extend(extra_dirs(std::env::var_os("EFFECTCRAFT_FONT_DIRS").as_deref()));
         Self { dirs }
     }
+}
+
+/// Extra font folders from `EFFECTCRAFT_FONT_DIRS` (a path list, `:`-separated, `;` on Windows), so a
+/// tool can hand MIXEL Effects its own font library without installing the fonts system-wide.
+fn extra_dirs(var: Option<&std::ffi::OsStr>) -> Vec<PathBuf> {
+    var.map(|v| std::env::split_paths(v).filter(|p| !p.as_os_str().is_empty()).collect()).unwrap_or_default()
 }
 
 fn walk(dir: &std::path::Path, depth: u32, out: &mut Vec<PathBuf>) {
@@ -103,7 +110,8 @@ fn walk(dir: &std::path::Path, depth: u32, out: &mut Vec<PathBuf>) {
     for e in rd.flatten() {
         let p = e.path();
         if p.is_dir() {
-            if depth < 4 {
+            // Bounded, so a symlink loop ends.
+            if depth < 8 {
                 walk(&p, depth + 1, out);
             }
         } else if p.extension().and_then(|x| x.to_str()).is_some_and(|x| matches!(x.to_ascii_lowercase().as_str(), "ttf" | "otf" | "ttc" | "otc")) {
@@ -119,6 +127,7 @@ impl FontSource for DirectorySource {
             walk(d, 0, &mut files);
         }
         files.sort();
+        files.dedup();
         let mut out = Vec::new();
         for f in files {
             let Ok(mut file) = std::fs::File::open(&f) else { continue };
@@ -142,6 +151,7 @@ fn info_from(n: FaceNames, data: FaceData, origin: &'static str) -> FaceInfo {
         native_family: n.native_family,
         full_name: n.full_name,
         postscript: n.postscript,
+        variable: n.variable,
     }
 }
 
@@ -395,6 +405,13 @@ pub fn native_families() -> std::collections::BTreeMap<String, String> {
     all_faces().into_iter().filter_map(|f| Some((f.info.family.clone(), f.info.native_family.clone()?))).collect()
 }
 
+/// Families with at least one variable face (variation axes), for the font menu's Variable
+/// Fonts filter. Scans the system fonts first if that hasn't happened yet.
+pub fn variable_families() -> std::collections::BTreeSet<String> {
+    scan_system();
+    all_faces().into_iter().filter(|f| f.info.variable).map(|f| f.info.family.clone()).collect()
+}
+
 /// Families with their style names, sorted by family; styles in weight order. This is what font
 /// menus list, so it scans the system fonts first if that hasn't happened yet (before, only a
 /// project asking for a font the bundled ones lack started the scan, and the menus offered the
@@ -472,6 +489,10 @@ pub fn resolve(family: &str, style: &str) -> Resolved {
 
 fn resolve_in(family: &str, style: &str) -> Option<Resolved> {
     let faces = all_faces();
+    resolve_in_faces(&faces, family, style)
+}
+
+fn resolve_in_faces(faces: &[Arc<Face>], family: &str, style: &str) -> Option<Resolved> {
     let fam: Vec<&Arc<Face>> = faces.iter().filter(|f| f.info.family.eq_ignore_ascii_case(family)).collect();
     if fam.is_empty() {
         return None;
@@ -566,8 +587,6 @@ const JAPANESE_FAMILIES: &[&str] = &[
     "Hiragino Kaku Gothic ProN",
     "Noto Sans CJK JP",
     "Noto Sans JP",
-    "Source Han Sans JP",
-    "Source Han Sans",
     "IPAGothic",
     "VL Gothic",
 ];
@@ -582,11 +601,9 @@ const CHINESE_FAMILIES: &[&str] = &[
     "Noto Sans CJK TC",
     "Noto Sans SC",
     "Noto Sans TC",
-    "Source Han Sans SC",
-    "Source Han Sans TC",
     "WenQuanYi Micro Hei",
 ];
-const KOREAN_FAMILIES: &[&str] = &["Malgun Gothic", "Gulim", "Apple SD Gothic Neo", "Noto Sans CJK KR", "Noto Sans KR", "Source Han Sans KR", "NanumGothic"];
+const KOREAN_FAMILIES: &[&str] = &["Malgun Gothic", "Gulim", "Apple SD Gothic Neo", "Noto Sans CJK KR", "Noto Sans KR", "NanumGothic"];
 /// The platforms' plain text families for the other scripts the bundled fonts lack, in the same
 /// order (Windows, macOS, then the Linux/Noto names).
 const ARABIC_FAMILIES: &[&str] = &["Segoe UI", "Tahoma", "Geeza Pro", "Noto Sans Arabic", "Noto Naskh Arabic", "DejaVu Sans", "Arial"];
@@ -753,9 +770,9 @@ fn fallback_cache() -> &'static RwLock<std::collections::HashMap<(u32, FaceId), 
     CACHE.get_or_init(Default::default)
 }
 
-/// A face that covers `c`, preferring `prefer`. Bundled faces and faces already loaded are tried
-/// first (cheap); then, for CJK characters, the platform's usual family for that language, in the
-/// preferred face's style; then any installed face that covers the character. `prefer` when
+/// A face that covers `c`, preferring `prefer`. Bundled faces are tried first, then the platform's
+/// plain family for the character's script in the preferred face's style. Already loaded faces
+/// and cached/exhaustive candidates are used when no preferred family covers it. `prefer` when
 /// nothing does (the glyph renders as the missing-glyph box).
 pub fn fallback_for(c: char, prefer: FaceId) -> FaceId {
     let p = face(prefer);
@@ -763,24 +780,21 @@ pub fn fallback_for(c: char, prefer: FaceId) -> FaceId {
         return prefer;
     }
     let faces = all_faces();
-    // prefer a face of the same italic-ness that is bundled (cheap), then anything loaded already
+    // Bundled coverage is cheap and needs no system scan.
     for f in faces.iter().filter(|f| f.info.origin == "bundled") {
         if f.has_char(c) {
             return f.id;
         }
     }
-    for f in faces.iter().filter(|f| f.info.origin != "bundled" && f.bytes.get().is_some()) {
-        if f.has_char(c) {
-            return f.id;
-        }
+    // A previously loaded broad-coverage font must not override a script's plain family.
+    if script_of(c) != FallbackScript::Other && cfg!(not(target_arch = "wasm32")) && !system_scanned() {
+        scan_system();
     }
+    let faces = all_faces();
     let key = (c as u32 >> 8, prefer);
-    if let Some(cached) = fallback_cache().read().unwrap_or_else(|e| e.into_inner()).get(&key).copied() {
-        match cached {
-            Some(id) if face(id).has_char(c) => return id,
-            Some(_) => {}
-            None => return prefer,
-        }
+    let cached = fallback_cache().read().unwrap_or_else(|e| e.into_inner()).get(&key).copied();
+    if let Some(found) = fast_fallback(c, &p.info.style, &faces, cached) {
+        return found.unwrap_or(prefer);
     }
     if cfg!(not(target_arch = "wasm32")) && !system_scanned() {
         scan_system();
@@ -790,8 +804,26 @@ pub fn fallback_for(c: char, prefer: FaceId) -> FaceId {
     found.unwrap_or(prefer)
 }
 
-/// The script-aware then exhaustive search behind [`fallback_for`].
-fn system_fallback(c: char, style: &str) -> Option<FaceId> {
+/// The script policy precedes both generic fast paths. The outer `None` means cache miss;
+/// `Some(None)` retains the cached missing-block result when no loaded/preferred face covers it.
+fn fast_fallback(c: char, style: &str, faces: &[Arc<Face>], cached: Option<Option<FaceId>>) -> Option<Option<FaceId>> {
+    if let Some(id) = preferred_script_fallback(c, style, faces) {
+        return Some(Some(id));
+    }
+    for f in faces.iter().filter(|f| f.info.origin != "bundled" && f.bytes.get().is_some()) {
+        if f.has_char(c) {
+            return Some(Some(f.id));
+        }
+    }
+    match cached {
+        Some(Some(id)) if faces.get(id).is_some_and(|f| f.has_char(c)) => Some(Some(id)),
+        Some(None) => Some(None),
+        _ => None,
+    }
+}
+
+/// A covering plain family for the character's script, with the requested style.
+fn preferred_script_fallback(c: char, style: &str, faces: &[Arc<Face>]) -> Option<FaceId> {
     let script = script_of(c);
     let order: Vec<FallbackScript> = match script {
         FallbackScript::Other => vec![],
@@ -805,16 +837,24 @@ fn system_fallback(c: char, style: &str) -> Option<FaceId> {
     };
     for s in order {
         for fam in families_for(s) {
-            if let Some(r) = resolve_in(fam, style)
-                && face(r.face).has_char(c)
+            if let Some(r) = resolve_in_faces(faces, fam, style)
+                && faces.get(r.face).is_some_and(|f| f.has_char(c))
             {
                 return Some(r.face);
             }
         }
     }
+    None
+}
+
+/// The script-aware then exhaustive search behind [`fallback_for`].
+fn system_fallback(c: char, style: &str) -> Option<FaceId> {
+    let faces = all_faces();
+    if let Some(id) = preferred_script_fallback(c, style, &faces) {
+        return Some(id);
+    }
     // Anything installed, in scan order; the style's weight and slant break ties among the faces
     // of the first covering family.
-    let faces = all_faces();
     let first = faces.iter().find(|f| f.info.origin != "bundled" && file_covers(f, c))?;
     let r = resolve_in(&first.info.family, style)?;
     Some(if face(r.face).has_char(c) { r.face } else { first.id })
@@ -823,6 +863,14 @@ fn system_fallback(c: char, style: &str) -> Option<FaceId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn extra_font_dirs_come_from_a_path_list() {
+        assert!(extra_dirs(None).is_empty());
+        let v = std::env::join_paths(["/a/fonts", "/b/more"]).unwrap_or_default();
+        assert_eq!(extra_dirs(Some(&v)), vec![PathBuf::from("/a/fonts"), PathBuf::from("/b/more")]);
+        assert!(extra_dirs(Some(std::ffi::OsStr::new(""))).is_empty());
+    }
 
     #[test]
     fn bundled_families_and_resolution() {
@@ -966,13 +1014,17 @@ mod tests {
     /// A minimal TrueType font built in code (no font file in the repo): U+0020 and U+E000 map to
     /// an empty glyph, U+E001 to a triangle.
     fn blank_glyph_font() -> Vec<u8> {
+        glyph_test_font("Blank Glyph Test", 0xE000)
+    }
+
+    fn glyph_test_font(family: &str, empty: u16) -> Vec<u8> {
         fn u16s(v: &[u16]) -> Vec<u8> {
             v.iter().flat_map(|x| x.to_be_bytes()).collect()
         }
         let delta_space = 1u16.wrapping_sub(0x20);
         let cmap4 = {
             let mut t = u16s(&[4, 0, 0, 6, 4, 1, 2]);
-            t.extend(u16s(&[0x20, 0xE001, 0xFFFF, 0, 0x20, 0xE000, 0xFFFF, delta_space, 0x2001, 1, 0, 0, 0]));
+            t.extend(u16s(&[0x20, empty + 1, 0xFFFF, 0, 0x20, empty, 0xFFFF, delta_space, 1u16.wrapping_sub(empty), 1, 0, 0, 0]));
             let len = t.len() as u16;
             t[2..4].copy_from_slice(&len.to_be_bytes());
             t
@@ -993,7 +1045,7 @@ mod tests {
         hhea.extend(u16s(&[0, 3]));
         let hmtx = u16s(&[600, 0, 600, 0, 600, 0]);
         let maxp = u16s(&[1, 0, 3, 3, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0]);
-        let strings: Vec<Vec<u8>> = ["Blank Glyph Test", "Regular"].iter().map(|s| s.encode_utf16().flat_map(|u| u.to_be_bytes()).collect()).collect();
+        let strings: Vec<Vec<u8>> = [family, "Regular"].iter().map(|s| s.encode_utf16().flat_map(|u| u.to_be_bytes()).collect()).collect();
         let mut name = u16s(&[0, 2, 30]);
         let mut off = 0;
         for (id, st) in strings.iter().enumerate() {
@@ -1018,6 +1070,57 @@ mod tests {
         }
         out.extend(body);
         out
+    }
+
+    /// These faces stay in a local database: no installed fonts, global cache mutations or test
+    /// ordering are needed to reproduce a broad loaded face preceding a plain script family.
+    fn fallback_test_face(local: &mut Db, family: &str, empty: u16, style: &str, weight: u16) -> FaceId {
+        let data = Arc::new(glyph_test_font(family, empty));
+        let mut info = info_from(read_faces_bytes(&data).into_iter().next().unwrap(), FaceData::Shared(data), "system");
+        info.style = style.into();
+        info.weight = weight;
+        push(local, info)
+    }
+
+    #[test]
+    fn preferred_script_family_wins_over_preloaded_and_cached_generic_faces() {
+        let mut local = Db { faces: Vec::new(), scanned: true };
+        let generic = fallback_test_face(&mut local, "MIXEL Broad Fallback Test", 0x05CF, "Regular", 400);
+        let regular = fallback_test_face(&mut local, HEBREW_FAMILIES[0], 0x05CF, "Regular", 400);
+        let bold = fallback_test_face(&mut local, HEBREW_FAMILIES[0], 0x05CF, "Bold", 700);
+        let c = 'א';
+        assert!(local.faces[generic].has_char(c), "the earlier nonpreferred face is loaded and draws the character");
+        assert!(local.faces[generic].bytes.get().is_some());
+        assert!(local.faces[regular].bytes.get().is_none() && local.faces[bold].bytes.get().is_none());
+        assert_eq!('Ա' as u32 >> 8, c as u32 >> 8, "the cache block can contain another script");
+        assert_eq!(script_of('Ա'), FallbackScript::Other);
+        for (style, expected) in [("Regular", regular), ("Bold", bold)] {
+            for cached in [None, Some(Some(generic)), Some(None)] {
+                assert_eq!(fast_fallback(c, style, &local.faces, cached), Some(Some(expected)));
+                assert!(local.faces[expected].has_char(c), "the preferred choice has a real outline");
+                assert_eq!(local.faces[expected].info.style, style);
+            }
+        }
+    }
+
+    #[test]
+    fn uncovered_script_family_preserves_a_loaded_generic_fallback() {
+        let mut local = Db { faces: Vec::new(), scanned: true };
+        let generic = fallback_test_face(&mut local, "MIXEL Generic Coverage Test", 0x05CE, "Regular", 400);
+        let plain = fallback_test_face(&mut local, HEBREW_FAMILIES[0], 0x05CF, "Regular", 400);
+        let c = '\u{05cf}';
+        assert!(local.faces[generic].has_char(c));
+        assert!(local.faces[plain].glyph(c).is_some() && !local.faces[plain].has_char(c));
+        assert_eq!(fast_fallback(c, "Regular", &local.faces, Some(None)), Some(Some(generic)));
+    }
+
+    #[test]
+    fn a_loaded_private_use_glyph_still_precedes_a_negative_block_cache() {
+        let mut local = Db { faces: Vec::new(), scanned: true };
+        let generic = fallback_test_face(&mut local, "MIXEL Private Use Test", 0xE000, "Regular", 400);
+        assert!(local.faces[generic].has_char('\u{e001}'));
+        assert_eq!(fast_fallback('\u{e001}', "Regular", &local.faces, Some(None)), Some(Some(generic)));
+        assert_eq!(fast_fallback('\u{e000}', "Regular", &local.faces, Some(None)), Some(None));
     }
 
     /// A face that maps a character to an empty glyph doesn't cover it, so fallback skips it

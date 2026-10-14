@@ -20,9 +20,9 @@
   <launchable type="desktop-id">ch.mixel.effects.desktop</launchable>
   <icon type="stock">ch.mixel.effects</icon>
   <!-- Only url types known to appstream 0.15 (Ubuntu 22.04, where CI validates): no vcs-browser. -->
-  <url type="homepage">https://getartcraft.com/apps/effectcraft</url>
-  <url type="bugtracker">https://github.com/storytold/effectcraft/issues</url>
-  <url type="help">https://github.com/storytold/effectcraft</url>
+  <url type="homepage">https://github.com/jangopeopleV2/mixel-effects</url>
+  <url type="bugtracker">https://github.com/jangopeopleV2/mixel-effects/issues</url>
+  <url type="help">https://github.com/jangopeopleV2/mixel-effects</url>
   <url type="contact">https://discord.gg/artcraft</url>
   <categories>
     <category>Graphics</category>

@@ -15,3 +15,5 @@ list (author, source, license) is in ATTRIBUTION.md.
 Inter (assets/fonts/Inter-*.ttf) — SIL Open Font License 1.1. See assets/fonts/OFL-Inter.txt.
 Noto Serif (assets/fonts/NotoSerif-Regular.ttf) — SIL Open Font License 1.1. See assets/fonts/OFL-NotoSerif.txt.
 JetBrains Mono (assets/fonts/JetBrainsMono-Regular.ttf) — SIL Open Font License 1.1. See assets/fonts/OFL-JetBrainsMono.txt.
+
+MIXEL automatic font fallback policy (2026-10-13): Source Han family names are retired from automatic CJK fallback chains. Existing Noto and platform font candidates remain, and explicitly selected or supplied document fonts retain their matching behavior. No Source Han font binary is bundled.

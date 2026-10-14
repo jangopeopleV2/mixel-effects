@@ -80,10 +80,35 @@ fn settle(h: &mut Harness<'_, EffectcraftApp>, secs: f64) {
 }
 
 fn snap(h: &mut Harness<'_, EffectcraftApp>, path: &str) -> Result<(), String> {
+    let text = visible_text(&h.output().shapes, h.ctx.content_rect());
     let img = h.render()?;
     img.save(path).map_err(|e| format!("{path}: {e}"))?;
-    println!("{}", json!({"snapshot": path, "width": img.width(), "height": img.height()}));
+    println!("{}", json!({"snapshot": path, "width": img.width(), "height": img.height(), "visibleText": text}));
     Ok(())
+}
+
+/// Complete text from the snapshot's painted frame, fully inside its clip and viewport.
+fn visible_text(shapes: &[egui::epaint::ClippedShape], viewport: egui::Rect) -> Vec<String> {
+    fn collect(shape: &egui::epaint::Shape, clip: egui::Rect, viewport: egui::Rect, text: &mut Vec<String>) {
+        match shape {
+            egui::epaint::Shape::Vec(children) => {
+                for child in children {
+                    collect(child, clip, viewport, text);
+                }
+            }
+            egui::epaint::Shape::Text(t)
+                if !t.galley.elided && clip.contains_rect(t.visual_bounding_rect()) && viewport.contains_rect(t.visual_bounding_rect()) =>
+            {
+                text.push(t.galley.job.text.clone());
+            }
+            _ => {}
+        }
+    }
+    let mut text = Vec::new();
+    for clipped in shapes {
+        collect(&clipped.shape, clipped.clip_rect, viewport, &mut text);
+    }
+    text
 }
 
 fn main() {

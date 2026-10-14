@@ -257,7 +257,12 @@ impl FileKind {
             return FileKind::Media;
         }
         let name = lower.rsplit('/').next().unwrap_or(&lower);
-        if lower.contains("/effectcraft auto-save/") || name.contains(" auto-save ") { FileKind::AutoSave } else { FileKind::Project }
+        // Keep the legacy folder for existing browser storage as well as the current one.
+        if lower.contains("/effectcraft auto-save/") || lower.contains("/mixel effects auto-save/") || name.contains(" auto-save ") {
+            FileKind::AutoSave
+        } else {
+            FileKind::Project
+        }
     }
 
     /// `storage.clear` / `storage.info` name.
@@ -399,6 +404,69 @@ mod tests {
         let deleted: Vec<String> = s.lock().take_pending().into_iter().filter(|p| p.data.is_none()).map(|p| p.key).collect();
         assert_eq!(deleted.len(), 2, "the deletions are flushed to browser storage");
         assert_eq!(s.usage()["media"]["count"], 0);
+    }
+
+    #[test]
+    fn autosave_kind_recognizes_current_and_legacy_directory_boundaries() {
+        for path in [
+            "/MIXEL Effects Auto-Save/recovered.ecproj",
+            "/effectcraft auto-save/recovered.ecproj",
+            "/nested/mIxEl eFfEcTs aUtO-SaVe/recovered.ECPROJ",
+            "/nested/eFfEcTcRaFt aUtO-SaVe/recovered.ECPROJ",
+            "/ordinary/My auto-save 3.ecproj",
+        ] {
+            assert_eq!(FileKind::of(path), FileKind::AutoSave, "{path}");
+        }
+        for path in [
+            "/MIXEL Effects Auto-Saves/recovered.ecproj",
+            "/MIXEL Effects Auto-Save-old/recovered.ecproj",
+            "/Not MIXEL Effects Auto-Save/recovered.ecproj",
+            "/effectcraft auto-save-old/recovered.ecproj",
+            "/Not effectcraft auto-save/recovered.ecproj",
+            "/MIXEL Effects Auto-Save.ecproj",
+            "/ordinary/recovered.ecproj",
+        ] {
+            assert_eq!(FileKind::of(path), FileKind::Project, "{path}");
+        }
+        for path in ["/MIXEL Effects Auto-Save/clip.mp4", "/effectcraft auto-save/still.png", "/MIXEL Effects Auto-Save/recovered.ecproj.backup"] {
+            assert_eq!(FileKind::of(path), FileKind::Media, "{path}");
+        }
+    }
+
+    #[test]
+    fn clearing_projects_preserves_both_reserved_directory_autosaves() {
+        let s = store();
+        let current = "/MIXEL Effects Auto-Save/recovered.ecproj";
+        let legacy = "/effectcraft auto-save/recovered.ecproj";
+        let near = "/MIXEL Effects Auto-Save-old/recovered.ecproj";
+        s.put_file(current, Arc::from(&b"new"[..]), true);
+        s.put_file(legacy, Arc::from(&b"older"[..]), true);
+        s.put_file(near, Arc::from(&b"project"[..]), true);
+        s.put_file("/plain.ecproj", Arc::from(&b"proj"[..]), true);
+        s.put_file("/still.png", Arc::from(&b"png"[..]), true);
+        s.put_file("/temporary.ecproj", Arc::from(&b"temp"[..]), false);
+        assert_eq!(s.usage()["projects"], serde_json::json!({"count": 2, "bytes": 11}));
+        assert_eq!(s.usage()["autoSaves"], serde_json::json!({"count": 2, "bytes": 8}));
+        assert_eq!(s.usage()["media"], serde_json::json!({"count": 1, "bytes": 3}));
+        s.lock().take_pending();
+        assert_eq!(s.clear_kind(FileKind::Project), (2, 11));
+        assert_eq!(s.file(current).as_deref(), Some(&b"new"[..]));
+        assert_eq!(s.file(legacy).as_deref(), Some(&b"older"[..]));
+        assert!(s.file(near).is_none() && s.file("/plain.ecproj").is_none());
+        let mut deleted: Vec<String> = s.lock().take_pending().into_iter().filter(|p| p.data.is_none()).map(|p| p.key).collect();
+        deleted.sort();
+        assert_eq!(deleted, ["files/MIXEL Effects Auto-Save-old/recovered.ecproj", "files/plain.ecproj"]);
+        assert_eq!(s.usage()["autoSaves"], serde_json::json!({"count": 2, "bytes": 8}));
+        assert_eq!(s.clear_kind(FileKind::AutoSave), (2, 8));
+        assert!(s.file(current).is_none() && s.file(legacy).is_none());
+        let mut deleted: Vec<String> = s.lock().take_pending().into_iter().filter(|p| p.data.is_none()).map(|p| p.key).collect();
+        deleted.sort();
+        assert_eq!(deleted, ["files/MIXEL Effects Auto-Save/recovered.ecproj", "files/effectcraft auto-save/recovered.ecproj"]);
+        assert_eq!(s.usage()["projects"], serde_json::json!({"count": 0, "bytes": 0}));
+        assert_eq!(s.usage()["autoSaves"], serde_json::json!({"count": 0, "bytes": 0}));
+        assert_eq!(s.usage()["media"], serde_json::json!({"count": 1, "bytes": 3}));
+        assert_eq!(s.file("/still.png").as_deref(), Some(&b"png"[..]));
+        assert_eq!(s.file("/temporary.ecproj").as_deref(), Some(&b"temp"[..]));
     }
 
     #[test]

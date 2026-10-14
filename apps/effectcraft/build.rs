@@ -13,9 +13,10 @@ fn main() {
     }
     let mut res = winresource::WindowsResource::new();
     res.set_icon("../../assets/app-icon/effectcraft.ico")
+        .set("CompanyName", "MIXEL")
         .set("ProductName", "MIXEL Effects")
         .set("FileDescription", "MIXEL Effects motion graphics and visual effects")
-        .set("LegalCopyright", "Copyright (c) 2026 The MIXEL Effects contributors. MIT OR Apache-2.0.")
+        .set("LegalCopyright", "Copyright (c) 2026 The EffectCraft contributors. MIT OR Apache-2.0. MIXEL Effects modifications by MIXEL contributors.")
         .set("OriginalFilename", "effectcraft.exe")
         .set("InternalName", "effectcraft");
     if let Err(e) = res.compile() {

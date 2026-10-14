@@ -44,7 +44,7 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("help.reportIssue", "Provide Feedback...", ["Help"], None, "{}", always, |s, _| open(s, links::ISSUES.into())),
         cmd!(
             "help.sibling",
-            "Other ArtCraft Apps",
+            "Other MIXEL Apps",
             [],
             None,
             "{app: photocraft|vectorcraft|filmcraft|lightcraft|pdfcraft|designcraft, kind?: page|github}",

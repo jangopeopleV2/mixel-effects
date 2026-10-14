@@ -7,15 +7,6 @@ Maintained by [MIXEL](https://mixel.ch). Based on [storytold/effectcraft](https:
 
 ---
 
-<p align="center">
-  <a href="https://getartcraft.com/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/brand/artcraft-logo-white.svg">
-      <img alt="ArtCraft" src="docs/brand/artcraft-logo.svg" width="200">
-    </picture>
-  </a>
-</p>
-
 
 <h1 align="center">MIXEL Effects</h1>
 
@@ -40,7 +31,7 @@ Maintained by [MIXEL](https://mixel.ch). Based on [storytold/effectcraft](https:
 </p>
 
 <p align="center">
-  <a href="https://getartcraft.com/apps/effectcraft"><b>MIXEL Effects on getartcraft.com</b></a> ·
+  <a href="https://github.com/jangopeopleV2/mixel-effects"><b>MIXEL Effects project page</b></a> ·
   <a href="https://getartcraft.com/">ArtCraft</a> ·
   <a href="https://getartcraft.com/apps">All Crafting Apps</a>
 </p>
@@ -193,7 +184,7 @@ See [docs/agents.md](docs/agents.md) and [docs/control-protocol.md](docs/control
 
 Installers for each version are on the [Releases](https://github.com/storytold/effectcraft/releases)
 page: a universal macOS app; Windows MSIs and portable zips for x64, x86 and ARM64; Linux
-AppImage, Flatpak, deb, rpm and tar.gz for x86_64 and aarch64; a FreeBSD x86_64 tarball; and the
+AppImage, Flatpak, deb, rpm and tar.gz for x86_64 and aarch64, plus a riscv64 tar.gz; a FreeBSD x86_64 tarball; and the
 web build. [Downloads](#downloads) lists every file. The Windows ARM64 build runs natively on
 Windows on ARM, without x64 emulation. CI installs that MSI on Windows 11 ARM64 hardware, checks
 both programs are ARM64 and runs the command-line tool there, but it doesn't open the app's window
@@ -212,8 +203,8 @@ emerge --ask media-video/effectcraft-bin
 To build it yourself you need [Rust](https://rustup.rs/) 1.95 or newer.
 
 ```sh
-git clone https://github.com/storytold/effectcraft
-cd effectcraft
+git clone https://github.com/jangopeopleV2/mixel-effects
+cd mixel-effects
 cargo run --release -p effectcraft          # the app (add `-- --demo` to open the demo project)
 cargo run --release -p effectcraft-cli -- render --out intro.mp4    # render the demo headless
 cargo xtask web --serve 8765                # the browser build on http://127.0.0.1:8765/ (docs/web.md)
@@ -243,8 +234,10 @@ what breaks. It isn't yet a replacement for After Effects on client work. In par
   Settings ▸ Roto Brush) and face tracking can use Google's MediaPipe Face Landmarker (an optional
   3.8 MB download in Settings ▸ Face Tracking). Neither is compared with After Effects yet.
 
-The [ROADMAP](ROADMAP.md) has the plan and [docs/gaps.md](docs/gaps.md) the full, honest
-assessment. The web build ([docs/web.md](docs/web.md)) runs the full app in the browser.
+MIXEL Effects is in **alpha**: about 91% of After Effects' features exist, and we estimate it is
+about 45% of the way to replacing After Effects for professional work. The [ROADMAP](ROADMAP.md)
+has the plan, [docs/target-app-parity.md](docs/target-app-parity.md) the measurement and
+[docs/gaps.md](docs/gaps.md) every known shortfall. The web build ([docs/web.md](docs/web.md)) runs the full app in the browser.
 [Bug reports](https://github.com/storytold/effectcraft/issues) are the most useful thing you can
 send us right now.
 
@@ -261,7 +254,7 @@ send us right now.
 
 ## Downloads
 
-**New to MIXEL Effects?** Download it from the [MIXEL Effects page on getartcraft.com](https://getartcraft.com/apps/effectcraft). That's the easiest way to install it.
+**New to MIXEL Effects?** Download it from the [MIXEL Effects page on getartcraft.com](https://github.com/jangopeopleV2/mixel-effects). That's the easiest way to install it.
 
 **Want a specific build or format?** On GitHub, the [latest release](https://github.com/storytold/effectcraft/releases/latest) has every build listed below, and [all releases](https://github.com/storytold/effectcraft/releases) has earlier versions and their notes. `<ver>` in the file names is the version number, and `SHA256SUMS.txt` lists a checksum for every file.
 
@@ -273,7 +266,9 @@ send us right now.
 | arm64 (Snapdragon and other ARM PCs) | `effectcraft-<ver>-windows-arm64.msi` | `effectcraft-<ver>-windows-arm64-portable.zip` |
 | x86 (32-bit) | `effectcraft-<ver>-windows-x86.msi` | `effectcraft-<ver>-windows-x86-portable.zip` |
 
-Installers and executables are code-signed.
+Installers and executables are code-signed. The installer asks where to install MIXEL Effects
+(Program Files by default), and later versions install into the same folder. To install silently
+into a folder of your choice: `msiexec /i effectcraft-<ver>-windows-x64.msi /qn INSTALLFOLDER="D:\Apps\MIXEL Effects"`.
 
 ### macOS
 
@@ -291,6 +286,22 @@ Installers and executables are code-signed.
 | Debian/Ubuntu | `effectcraft-<ver>-linux-x86_64.deb` | `effectcraft-<ver>-linux-aarch64.deb` | |
 | Fedora/RHEL/openSUSE | `effectcraft-<ver>-linux-x86_64.rpm` | `effectcraft-<ver>-linux-aarch64.rpm` | |
 | Tarball | `effectcraft-<ver>-linux-x86_64.tar.gz` | `effectcraft-<ver>-linux-aarch64.tar.gz` | Unpack anywhere |
+
+RISC-V 64-bit: `effectcraft-<ver>-linux-riscv64.tar.gz` (tarball only; needs glibc 2.39+, e.g. Ubuntu 24.04+ or Debian 13+).
+
+**File drag-and-drop on Linux:** The current eframe/winit 0.30 native Wayland backend does not
+deliver file-hover or file-drop events. On Hyprland and other native Wayland sessions, use
+**File ▸ Import ▸ File…** (which accepts multiple files), or start MIXEL Effects via XWayland if
+XWayland is installed and `DISPLAY` is set:
+
+```sh
+env -u WAYLAND_DISPLAY effectcraft
+```
+
+When the backend delivers events (X11/XWayland, Windows and macOS), dropping media anywhere
+in the window imports it, and a drop-target hint appears while hovering. On native Wayland the
+app cannot detect an attempt that generates no event; it shows a startup notice with the
+File ▸ Import fallback instead.
 
 ### FreeBSD
 
@@ -317,7 +328,7 @@ stand on its own.
 | <img src="https://raw.githubusercontent.com/storytold/filmcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.film.png" alt="" width="32" height="32"> | **MIXEL Film** | Video editing, color and sound | [GitHub](https://github.com/storytold/filmcraft) | [Website](https://getartcraft.com/apps/filmcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/lightcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.light.png" alt="" width="32" height="32"> | **MIXEL Light** | Photo library and raw development | [GitHub](https://github.com/storytold/lightcraft) | [Website](https://getartcraft.com/apps/lightcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/pdfcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.print.png" alt="" width="32" height="32"> | **MIXEL Print** | Reading, organizing and protecting PDFs | [GitHub](https://github.com/storytold/pdfcraft) | [Website](https://getartcraft.com/apps/pdfcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/effectcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.effects.png" alt="" width="32" height="32"> | **MIXEL Effects** | **Motion graphics and visual effects · you are here** | [GitHub](https://github.com/storytold/effectcraft) | [Website](https://getartcraft.com/apps/effectcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/effectcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.effects.png" alt="" width="32" height="32"> | **MIXEL Effects** | **Motion graphics and visual effects · you are here** | [GitHub](https://github.com/storytold/effectcraft) | [Website](https://github.com/jangopeopleV2/mixel-effects) |
 | <img src="https://raw.githubusercontent.com/storytold/designcraft/main/assets/app-icon/hicolor/64x64/apps/ch.mixel.design.png" alt="" width="32" height="32"> | **MIXEL Design** | Page layout and publishing | [GitHub](https://github.com/storytold/designcraft) | [Website](https://getartcraft.com/apps/designcraft) |
 
 And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video studio for artists who want real control.
@@ -341,27 +352,24 @@ And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video stud
   <a href="https://discord.gg/artcraft"><b>discord.gg/artcraft</b></a> ·
   <a href="https://getartcraft.com/">getartcraft.com</a> ·
   <a href="https://getartcraft.com/apps">The Crafting Apps</a> ·
-  <a href="https://getartcraft.com/apps/effectcraft">MIXEL Effects</a>
+  <a href="https://github.com/jangopeopleV2/mixel-effects">MIXEL Effects</a>
 </p>
 
 ## License and credits
 
 MIXEL Effects is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
-Copyright (c) 2026 ArtCraft Team and the MIXEL Effects contributors. Required notices are in [NOTICE](NOTICE).
+Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors. Required notices are in [NOTICE](NOTICE).
+MIXEL Effects modifications by MIXEL contributors.
 
 Bundled fonts, icons, images and other assets keep their own open licenses; each one is listed
 with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md).
 
-The ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the
-ArtCraft Team and are not covered by this license. They may be used only unmodified, and only as
-part of this repository and MIXEL Effects, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
-Forks and modified versions must remove them.
+The upstream ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the ArtCraft Team under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt). They are retained as upstream source provenance, excluded from the MIXEL application, and never used as MIXEL branding. This fork identifies its ArtCraft origins in plain text and uses an original MIXEL monogram.
 
 <sub>Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. MIXEL Effects is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
 
 <p align="center">
-  <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>
-  <sub>Made by the <a href="https://getartcraft.com/">ArtCraft</a> team and community.</sub>
+  <sub>Based on upstream work by the <a href="https://getartcraft.com/">ArtCraft</a> team and community.</sub>
 </p>
 
 ## Star history

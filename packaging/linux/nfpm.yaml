@@ -14,7 +14,7 @@ section: graphics
 priority: optional
 maintainer: ${EFFECTCRAFT_MAINTAINER}
 vendor: MIXEL
-homepage: https://getartcraft.com/apps/effectcraft
+homepage: https://github.com/jangopeopleV2/mixel-effects
 license: MIT OR Apache-2.0
 description: |-
   Open-source motion graphics and visual effects compositor.
