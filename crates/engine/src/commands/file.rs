@@ -84,6 +84,20 @@ fn resolve_relative_footage(p: &mut Project, project_path: &str, services: &dyn 
     let beside = |f: &str| dir.join(f).to_string_lossy().to_string();
     for item in p.items.values_mut() {
         let ItemKind::Footage(f) = &mut item.kind else { continue };
+        if crate::macos_mas::enabled() {
+            if Path::new(&f.path).is_absolute()
+                && let Ok(path) = crate::macos_mas::resolve(&f.path)
+            {
+                f.path = path.to_string_lossy().into_owned();
+            }
+            for frame in &mut f.sequence {
+                if Path::new(frame.as_str()).is_absolute()
+                    && let Ok(path) = crate::macos_mas::resolve(frame.as_str())
+                {
+                    *frame = path.to_string_lossy().into_owned();
+                }
+            }
+        }
         if f.path.is_empty() || !Path::new(&f.path).is_relative() || services.exists(&f.path) || !services.exists(&beside(&f.path)) {
             continue;
         }

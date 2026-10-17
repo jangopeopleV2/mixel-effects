@@ -28,6 +28,9 @@ pub struct FileExporter {
 }
 
 impl Exporter for FileExporter {
+    fn native_file_outputs(&self) -> bool {
+        self.sink.is_none()
+    }
     fn formats(&self) -> Vec<OutputFormat> {
         effectcraft_export::available_formats()
     }
@@ -41,6 +44,32 @@ impl Exporter for FileExporter {
         progress: &'a mut dyn FnMut(u64, u64) -> bool,
     ) -> effectcraft_engine::render_queue::LocalFuture<'a, Result<ExportResult, String>> {
         Box::pin(async move {
+            if self.native_file_outputs() && effectcraft_engine::macos_mas::enabled() {
+                let mut access = effectcraft_engine::render_queue::output_access::OutputAccess::for_output(job.item, job.path)?;
+                if job.storage.is_some() && job.item.settings.storage_overflow {
+                    for folder in &job.project.render_prefs.overflow_folders {
+                        access.include_overflow(folder);
+                    }
+                }
+                access.require()?;
+            }
+            let destination = |path: &std::path::Path| {
+                let path = effectcraft_engine::macos_mas::resolve(path).map_err(std::io::Error::other)?;
+                if effectcraft_engine::macos_mas::enabled()
+                    && let Some(parent) = path.parent().filter(|parent| effectcraft_engine::macos_mas::directory_granted(parent))
+                {
+                    // Segmented sequences create subdirectories only inside the explicitly granted
+                    // scope, after the complete queue has passed its preflight. Exact file-only
+                    // saves leave their existing parent alone and use Foundation publication.
+                    std::fs::create_dir_all(parent)?;
+                }
+                Ok(path)
+            };
+            let published = |actual: &std::path::Path| {
+                if let Err(error) = effectcraft_engine::macos_mas::after_write(actual) {
+                    effectcraft_engine::macos_mas::notice(format!("Rendered file was saved, but future access could not be retained: {error}"));
+                }
+            };
             let j = effectcraft_export::Job {
                 project: job.project,
                 footage: job.footage,
@@ -52,6 +81,8 @@ impl Exporter for FileExporter {
                 path: job.path,
                 sink: self.sink.as_deref(),
                 options: effectcraft_export::JobOptions {
+                    destination: Some(&destination),
+                    published: Some(&published),
                     log: job.item.log,
                     label: job.label.clone(),
                     storage: job.storage,
@@ -99,6 +130,9 @@ pub fn session() -> Session {
 /// `~/Library/Application Support/MIXEL Effects` (macOS), `%APPDATA%\MIXEL Effects` (Windows),
 /// `$XDG_CONFIG_HOME/effectcraft` or `~/.config/effectcraft` (Linux and others).
 pub fn config_dir() -> Option<std::path::PathBuf> {
+    if effectcraft_engine::macos_mas::enabled() {
+        return effectcraft_engine::macos_mas::container_dir("MIXEL Effects");
+    }
     use std::path::PathBuf;
     if let Some(d) = std::env::var_os("EFFECTCRAFT_CONFIG_DIR") {
         return Some(PathBuf::from(d));
@@ -116,6 +150,14 @@ pub fn config_dir() -> Option<std::path::PathBuf> {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+
+    #[test]
+    fn only_real_filesystem_exporters_request_native_output_permissions() {
+        let native = super::FileExporter::default();
+        assert!(effectcraft_engine::Exporter::native_file_outputs(&native));
+        let memory = super::FileExporter { sink: Some(std::sync::Arc::new(|_: &str, _: Vec<u8>| {})) };
+        assert!(!effectcraft_engine::Exporter::native_file_outputs(&memory));
+    }
 
     /// Layer ▸ Camera ▸ Link Focus Distance to Point of Interest / to Layer: the expressions
     /// evaluate to the camera's focus on the target.

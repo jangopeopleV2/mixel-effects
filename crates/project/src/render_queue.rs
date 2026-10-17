@@ -1448,19 +1448,20 @@ pub fn expand_template(template: &str, format: OutputFormat, v: &TemplateVars) -
         .replace("[outputModuleName]", format.label())
 }
 
-/// Replace the first run of `#` (optionally in brackets, `[####]`) with the zero-padded frame
-/// number. Paths without a run get `_NNNNN` before the extension.
+/// Replace the first run of `#` in the filename (optionally in brackets, `[####]`) with the
+/// zero-padded frame number. Filenames without a run get `_NNNNN` before the extension.
 pub fn sequence_path(path: &str, frame: i64) -> String {
-    if let Some(start) = path.find('#') {
-        let len = path[start..].chars().take_while(|c| *c == '#').count();
-        let (mut a, mut b) = (start, start + len);
-        if a > 0 && path.as_bytes()[a - 1] == b'[' && path.as_bytes().get(b) == Some(&b']') {
-            a -= 1;
-            b += 1;
-        }
-        return format!("{}{:0width$}{}", &path[..a], frame, &path[b..], width = len);
-    }
     let p = std::path::Path::new(path);
+    let filename = p.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+    if let Some((before, tail)) = filename.split_once('#') {
+        let after = tail.trim_start_matches('#');
+        let width = tail.len().saturating_sub(after.len()).saturating_add(1);
+        let (before, after) = match (before.strip_suffix('['), after.strip_prefix(']')) {
+            (Some(before), Some(after)) => (before, after),
+            _ => (before, after),
+        };
+        return p.with_file_name(format!("{before}{frame:0width$}{after}")).to_string_lossy().into_owned();
+    }
     match p.extension() {
         Some(ext) => format!("{}_{frame:05}.{}", p.with_extension("").to_string_lossy(), ext.to_string_lossy()),
         None => format!("{path}_{frame:05}"),
@@ -1484,6 +1485,17 @@ mod tests {
         assert_eq!(sequence_path("out/a_[#####].png", 42), "out/a_00042.png");
         assert_eq!(sequence_path("a###.tif", 7), "a007.tif");
         assert_eq!(sequence_path("a.png", 3), "a_00003.png");
+    }
+
+    #[test]
+    fn sequence_frame_numbers_preserve_parent_directories() {
+        for directory in ["frames_[#####]_8bpc_001", "#archive", "é#[versions]"] {
+            let parent = std::path::Path::new("output").join(directory);
+            for (name, expected) in [("frames_[#####]_8bpc.png", "frames_00042_8bpc.png"), ("a###.tif", "a042.tif"), ("a.png", "a_00042.png")] {
+                let input = parent.join(name);
+                assert_eq!(std::path::Path::new(&sequence_path(&input.to_string_lossy(), 42)), parent.join(expected));
+            }
+        }
     }
 
     #[test]

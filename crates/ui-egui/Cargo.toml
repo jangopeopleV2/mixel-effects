@@ -9,6 +9,10 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+mac-app-store = ["effectcraft-engine/mac-app-store"]
+
 [dependencies]
 craft-ui = { workspace = true }
 effectcraft-time = { workspace = true }

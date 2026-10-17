@@ -17,6 +17,7 @@ mod appimage;
 #[cfg(target_os = "macos")]
 mod apple_events;
 mod audio_out;
+#[cfg(not(all(target_os = "macos", feature = "mac-app-store")))]
 mod control_server;
 mod launch_guard;
 #[cfg(target_os = "macos")]
@@ -94,13 +95,26 @@ fn main() -> eframe::Result {
     // feed the compatibility report.
     effectcraft_engine::logging::install();
     effectcraft_engine::logging::install_panic_hook();
-    let Some(Args { control_port, files, demo, home }) = parse_args(std::env::args().skip(1), std::env::var("EFFECTCRAFT_CONTROL_PORT").ok()) else {
+    let Some(Args { mut control_port, files, demo, home }) = parse_args(std::env::args().skip(1), std::env::var("EFFECTCRAFT_CONTROL_PORT").ok()) else {
         println!("effectcraft {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     };
     // The session log lives in the settings folder (`Logs/effectcraft.log`, the previous two runs
     // kept): a launch from the Dock or a menu has no terminal. Opened after the arguments, so
     // `--version` leaves no file behind; records logged until now are written to it first.
+    for error in effectcraft_engine::macos_mas::initialize("MIXEL Effects") {
+        log::warn!("{error}");
+    }
+    if effectcraft_engine::macos_mas::enabled() && effectcraft_engine::macos_mas::container_dir("MIXEL Effects").is_none() {
+        return Err(eframe::Error::AppCreation("Launch the signed MIXEL Effects App Store application bundle to use its private container".into()));
+    }
+    if effectcraft_engine::macos_mas::enabled() && control_port.take().is_some() {
+        log::warn!("The control server is unavailable in the Mac App Store build.");
+    }
+    let files: Vec<String> = files
+        .into_iter()
+        .filter_map(|p| effectcraft_engine::macos_mas::picked(std::path::Path::new(&p), false).map(|p| p.to_string_lossy().into_owned()))
+        .collect();
     if let Some(dir) = effectcraft_host::config_dir() {
         match effectcraft_engine::logging::attach_session_log(&effectcraft_engine::logging::log_dir(Some(&dir))) {
             Ok(path) => log::info!("effectcraft {}, log file {}", env!("CARGO_PKG_VERSION"), path.display()),
@@ -187,8 +201,10 @@ fn main() -> eframe::Result {
             let opened = cc.winit_window().map(|w| window::restore(w, saved_window));
             let recovery = if control_port.is_none() { session.begin_recovery() } else { None };
             let project = files.iter().find(|f| is_project_file(f)).cloned();
-            if let Some(p) = project {
-                if let Err(e) = session.execute("file.open", json!({"path": p})) {
+            if let Some(p) = &project {
+                if !effectcraft_engine::macos_mas::enabled()
+                    && let Err(e) = session.execute("file.open", json!({"path": p}))
+                {
                     log::warn!("{p}: {e}");
                 }
             } else if demo {
@@ -205,6 +221,8 @@ fn main() -> eframe::Result {
             // reported in a toast and forgotten).
             let _ = session.execute("window.restoreScriptPanels", json!({}));
             let mut app = EffectcraftApp::new(session);
+            #[cfg(all(target_os = "macos", feature = "mac-app-store"))]
+            app.require_async_file_dialogs();
             app.set_gpu_failure_bridge(gpu_failures);
             app.ui.start_screen = show_home;
             if let Some(n) = notice {
@@ -219,12 +237,27 @@ fn main() -> eframe::Result {
             {
                 app.ui.status = note.into();
             }
-            app.hooks.pick_files = Some(Box::new(|exts: &[&str]| {
-                rfd::FileDialog::new().add_filter("Media", exts).pick_files().unwrap_or_default().into_iter().map(|p| p.to_string_lossy().to_string()).collect()
-            }));
-            app.hooks.pick_save = Some(Box::new(|name: &str| {
-                rfd::FileDialog::new().add_filter("MIXEL Effects Project", &["ecproj"]).set_file_name(name).save_file().map(|p| p.to_string_lossy().to_string())
-            }));
+            #[cfg(not(all(target_os = "macos", feature = "mac-app-store")))]
+            {
+                app.hooks.pick_files = Some(Box::new(|exts: &[&str]| {
+                    rfd::FileDialog::new()
+                        .add_filter("Media", exts)
+                        .pick_files()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter_map(|p| effectcraft_engine::macos_mas::picked(p, false))
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .collect()
+                }));
+                app.hooks.pick_save = Some(Box::new(|name: &str| {
+                    rfd::FileDialog::new()
+                        .add_filter("MIXEL Effects Project", &["ecproj"])
+                        .set_file_name(name)
+                        .save_file()
+                        .and_then(|p| effectcraft_engine::macos_mas::picked(p, true))
+                        .map(|p| p.to_string_lossy().into_owned())
+                }));
+            }
             // The window closes after a lost graphics device (#591); say why, unless an agent drives
             // the app through the control channel.
             if control_port.is_none() {
@@ -241,32 +274,64 @@ fn main() -> eframe::Result {
                         .show();
                 }));
             }
-            app.hooks.pick_open_project = Some(Box::new(|| {
-                rfd::FileDialog::new().add_filter("MIXEL Effects Project", &["ecproj", "ecprojx"]).pick_file().map(|p| p.to_string_lossy().to_string())
-            }));
+            #[cfg(not(all(target_os = "macos", feature = "mac-app-store")))]
+            {
+                app.hooks.pick_open_project = Some(Box::new(|| {
+                    rfd::FileDialog::new()
+                        .add_filter("MIXEL Effects Project", &["ecproj", "ecprojx"])
+                        .pick_file()
+                        .and_then(|p| effectcraft_engine::macos_mas::picked(p, false))
+                        .map(|p| p.to_string_lossy().into_owned())
+                }));
+            }
             app.hooks.system_theme = appearance::service();
             app.hooks.audio_device = Some(Box::new(audio_out::open));
             app.hooks.audio_devices = Some(Box::new(audio_out::devices));
-            app.hooks.pick_folder = Some(Box::new(|| rfd::FileDialog::new().pick_folder().map(|p| p.to_string_lossy().to_string())));
-            app.hooks.pick_save_file = Some(Box::new(|name: &str, ext: &str| {
-                // A default with a folder that exists opens the dialog there.
-                let path = std::path::Path::new(name);
-                // (No filter for a name without an extension, such as a folder to create.)
-                let mut d = if ext.is_empty() { rfd::FileDialog::new() } else { rfd::FileDialog::new().add_filter(ext, &[ext]) };
-                if let Some(dir) = path.parent().filter(|d| d.is_dir()) {
-                    d = d.set_directory(dir);
-                }
-                let file = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                d.set_file_name(file).save_file().map(|p| p.to_string_lossy().to_string())
-            }));
+            #[cfg(not(all(target_os = "macos", feature = "mac-app-store")))]
+            {
+                app.hooks.pick_folder = Some(Box::new(|| {
+                    rfd::FileDialog::new().pick_folder().and_then(|p| effectcraft_engine::macos_mas::picked(p, false)).map(|p| p.to_string_lossy().into_owned())
+                }));
+                app.hooks.pick_save_file = Some(Box::new(|name: &str, ext: &str| {
+                    // A default with a folder that exists opens the dialog there.
+                    let path = std::path::Path::new(name);
+                    // (No filter for a name without an extension, such as a folder to create.)
+                    let mut d = if ext.is_empty() { rfd::FileDialog::new() } else { rfd::FileDialog::new().add_filter(ext, &[ext]) };
+                    if let Some(dir) = path.parent().filter(|d| d.is_dir()) {
+                        d = d.set_directory(dir);
+                    }
+                    let file = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    d.set_file_name(file).save_file().and_then(|p| effectcraft_engine::macos_mas::picked(p, true)).map(|p| p.to_string_lossy().into_owned())
+                }));
+            }
             #[cfg(target_os = "macos")]
             {
                 // The commands' file dialogs open as sheets instead of nested modal loops (#511).
                 let ctx = cc.egui_ctx.clone();
-                app.hooks.file_dialog_async = Some(Box::new(move |dialog, done| sheet_dialogs::show(dialog, done, ctx.clone())));
+                #[cfg(feature = "mac-app-store")]
+                {
+                    use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
+                    let parent = (cc.window_handle().is_ok() && cc.display_handle().is_ok()).then(|| rfd::AsyncFileDialog::new().set_parent(cc));
+                    app.hooks.file_dialog_async = Some(Box::new(move |dialog, done| {
+                        if let Err(error) = sheet_dialogs::show_mas(dialog, done, parent.as_ref(), ctx.clone()) {
+                            log::error!("file chooser: {error}");
+                        }
+                    }));
+                }
+                #[cfg(not(feature = "mac-app-store"))]
+                {
+                    app.hooks.file_dialog_async = Some(Box::new(move |dialog, done| sheet_dialogs::show(dialog, done, ctx.clone())));
+                }
                 app.hooks.app_action = Some(Box::new(native_menu::app_action));
                 app.hooks.clipboard_text = Some(Box::new(native_menu::clipboard_text));
             }
+            if effectcraft_engine::macos_mas::enabled()
+                && let Some(path) = project
+                && let Err(error) = effectcraft_ui_egui::menus::invoke(&mut app, &cc.egui_ctx, "file.open", json!({"path": path}))
+            {
+                app.ui.status = error;
+            }
+            #[cfg(not(all(target_os = "macos", feature = "mac-app-store")))]
             if let Some(port) = control_port {
                 disable_app_nap();
                 let rx = control_server::start(port, cc.egui_ctx.clone());
@@ -364,6 +429,9 @@ impl eframe::App for Desktop {
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_os = "macos")]
         self.menu.update(&mut self.app, ctx);
+        for error in effectcraft_engine::macos_mas::poll() {
+            self.app.session.toast(error);
+        }
         self.app.logic(ctx, frame);
     }
 
@@ -410,6 +478,7 @@ fn agent_event_loop(agent: bool) -> Option<eframe::EventLoopBuilderHook> {
 
 /// Agents drive the app while its window is covered or on another Space. macOS App Nap would
 /// throttle the event loop then, stalling the control channel; opt out for `--control` runs.
+#[cfg(not(all(target_os = "macos", feature = "mac-app-store")))]
 fn disable_app_nap() {
     #[cfg(target_os = "macos")]
     {

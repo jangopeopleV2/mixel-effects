@@ -307,7 +307,12 @@ fn sockets_talk_tcp_behind_the_network_preference() {
     let o = run_code(&mut s, "var s = new Socket(); s.timeout = 1; var ok = s.open('127.0.0.1:1'); [ok, s.error.length > 0].join('|')", "net.jsx");
     assert_eq!(o.result, json!("false|true"));
     let o = run_code(&mut s, "var l = new Socket(); l.listen(0); var r = [l.port > 0, l.poll() === null].join('|'); l.close(); r", "net.jsx");
-    assert_eq!(o.result, json!("true|true"));
+    let expected = if effectcraft_engine::macos_mas::enabled() { "false|true" } else { "true|true" };
+    assert_eq!(o.result, json!(expected));
+    if effectcraft_engine::macos_mas::enabled() {
+        let o = run_code(&mut s, "var denied = new Socket(); [denied.listen(0), denied.error].join('|')", "net.jsx");
+        assert_eq!(o.result, json!("false|Listening sockets are unavailable in the Mac App Store build"));
+    }
 }
 
 /// `__uiParseRes(src)` as JSON, or the error message.

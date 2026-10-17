@@ -334,6 +334,12 @@ fn about_main(app: &mut EffectcraftApp, ui: &mut egui::Ui, t: &Tokens, cmd: &mut
         }
         ui.add_space(4.0);
     }
+    ui.add_space(6.0);
+    let privacy = ui.link(tr("Privacy Policy")).on_hover_text("https://www.mixel.ch/legal/craft/privacy/");
+    app.auto.add("about.privacyPolicy", privacy.rect, "Privacy Policy");
+    if privacy.clicked() {
+        ui.ctx().open_url(egui::OpenUrl::new_tab("https://www.mixel.ch/legal/craft/privacy/"));
+    }
 }
 
 fn comp_settings(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens, existing: bool) {

@@ -42,7 +42,11 @@ pub fn dropped_files(app: &mut EffectcraftApp, ui: &egui::Ui, bounds: Rect) {
         let mut skipped = 0;
         for file in &i.raw.dropped_files {
             if file.path().is_absolute() {
-                paths.push(file.path().to_string_lossy().into_owned());
+                if let Some(path) = crate::macos_mas::picked(file.path(), false) {
+                    paths.push(path.to_string_lossy().into_owned());
+                } else {
+                    skipped += 1;
+                }
             } else {
                 skipped += 1;
             }

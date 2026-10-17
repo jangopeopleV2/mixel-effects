@@ -1,8 +1,19 @@
 asset:        effectcraft-macos-512.png
-title:        EffectCraft runtime Dock icon (macOS)
-author:       EffectCraft contributors (drawing by the project owner in ArtCraft)
-source:       original work
-license:      MIT OR Apache-2.0
-license-file: assets/app-icon/LICENSE.txt
-added:        2026-10-02 by EffectCraft contributors (Claude agent, app icon)
-notes:        Rendered from effectcraft.svg on Apple's 824/1024 icon grid with resvg by packaging/icons.sh; embedded by apps/effectcraft/src/main.rs.
+title:        MIXEL Effects app icon (macOS runtime icon, 512 px)
+author:       MIXEL (user-supplied brand); MIXEL contributors (product symbol); Inter Project Authors (name outlines)
+source:       User-supplied mixel_core_clean_master.png (SHA-256 d968314eb375bfc4441e73fd6b4ace5db157128a0b591e10c5187532edc5b516); original wand and sparks overlay; outlined Inter SemiBold name; see assets/app-icon/README.md
+license:      LicenseRef-MIXEL-Brand
+license-file: assets/app-icon/LICENSE-MIXEL-brand.txt
+added:        2026-10-15 by MIXEL contributors
+notes:        Exact supplied raster MIXEL base, independently drawn product-symbol vectors, and uppercase Inter SemiBold name outlines. Brand/composite rights are reserved; only the original product-symbol layer has the separate MIT OR Apache-2.0 grant in assets/app-icon/LICENSE.txt. Full Inter notice: assets/app-icon/OFL-Inter.txt. Earlier metadata below is historical and remains applicable to unchanged old derivatives.
+
+# Historical upstream revision metadata (replaced app-icon revision; retained verbatim as comments):
+# asset:        effectcraft-macos-512.png
+# title:        EffectCraft runtime Dock icon (macOS)
+# author:       EffectCraft contributors (drawing by the project owner in ArtCraft)
+# source:       original work
+# license:      MIT OR Apache-2.0
+# license-file: assets/app-icon/LICENSE.txt
+# added:        2026-10-02 by EffectCraft contributors (Claude agent, app icon)
+# notes:        Rendered from effectcraft.svg on Apple's 824/1024 icon grid with resvg by packaging/icons.sh; embedded by apps/effectcraft/src/main.rs.
+# 

@@ -223,7 +223,7 @@ fn open_recent(s: &mut Session, p: &Value) -> Result<Value> {
         Ok(v) => Ok(v),
         Err(e) => {
             // A project that's gone drops out of the list.
-            if !std::path::Path::new(&path).exists() {
+            if !crate::macos_mas::enabled() && !std::path::Path::new(&path).exists() {
                 s.prefs.recent_projects.retain(|x| *x != path);
                 s.save_prefs();
             }

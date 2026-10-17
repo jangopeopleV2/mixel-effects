@@ -396,11 +396,95 @@ fn output_to_menu(it: &RenderQueueItem) -> Vec<(String, Value)> {
     v
 }
 
+/// UI and native menu entrypoint. The engine repeats this preflight for automation and at
+/// worker startup; the UI adds only the explicit native folder-selection continuation.
+pub(crate) fn render(app: &mut EffectcraftApp, ctx: &egui::Context, mut params: Value) -> Result<Value, String> {
+    let implicit_wait = params.get("wait").is_none();
+    if implicit_wait {
+        if let Some(fields) = params.as_object_mut() {
+            fields.insert("wait".into(), json!(false));
+        } else {
+            params = json!({"wait": false});
+        }
+    }
+    if app.async_dialogs_required && app.session.requires_native_output_access() {
+        let missing = app.session.render_output_access()?.missing()?;
+        if !missing.is_empty() {
+            defer_render(app, params, missing);
+            return Ok(json!({"dialog": "renderOutputFolder"}));
+        }
+    }
+    if implicit_wait {
+        app.show_panel(crate::dock::PanelKind::RenderQueue);
+        app.session.execute("renderQueue.render", params).map_err(|error| error.to_string())
+    } else {
+        crate::menus::run_engine(app, ctx, "renderQueue.render", params)
+    }
+}
+
+fn defer_render(app: &mut EffectcraftApp, params: Value, access: effectcraft_engine::render_queue::output_access::OutputAccess) {
+    let project = app.session.project.clone();
+    let prefs = app.session.prefs.clone();
+    let path = app.session.path.clone();
+    let epoch = app.session.script_ui.project_epoch;
+    let comp = app.session.state.active_comp;
+    app.ui.status = tr(effectcraft_engine::render_queue::output_access::FOLDER_REQUIRED).into();
+    crate::file_dialog::defer(app, crate::FileDialog::Folder, move |app, paths| {
+        if app.session.is_rendering()
+            || !std::sync::Arc::ptr_eq(&project, &app.session.project)
+            || prefs != app.session.prefs
+            || path != app.session.path
+            || epoch != app.session.script_ui.project_epoch
+            || comp != app.session.state.active_comp
+        {
+            app.ui.status = "The render queue item changed while choosing a file. Choose it again.".into();
+            return;
+        }
+        let Some(folder) = paths.first() else { return };
+        if let Err(error) = access.accept_folder(std::path::Path::new(folder)) {
+            app.ui.status = tr(&error).into();
+            return;
+        }
+        let remaining = match access.missing() {
+            Ok(remaining) => remaining,
+            Err(error) => {
+                app.ui.status = error;
+                return;
+            }
+        };
+        if !remaining.is_empty() {
+            defer_render(app, params, remaining);
+            return;
+        }
+        // This is the original command and configuration, with actual registry checks intact.
+        // Cancellation and stale/wrong-folder answers never reach autosave or a render worker.
+        app.show_panel(crate::dock::PanelKind::RenderQueue);
+        if let Err(error) = app.session.execute("renderQueue.render", params) {
+            app.ui.status = error.to_string();
+        }
+    });
+}
+
 /// Output To's save dialog, as After Effects' Output Movie To: it opens at the current output
 /// (folder and name, which ends in the format's extension) and offers that extension. `None`
 /// when the host has no save dialog; `Some(None)` when the dialog was cancelled.
-fn pick_output(app: &EffectcraftApp, it: &RenderQueueItem) -> Option<Option<String>> {
-    app.hooks.save_dialog(&app.session.resolve_output(it).unwrap_or_default())
+fn pick_output(app: &mut EffectcraftApp, it: &RenderQueueItem) -> Option<Option<String>> {
+    let default = app.session.resolve_output(it).unwrap_or_default();
+    let expected = it.clone();
+    if crate::file_dialog::defer(app, crate::FileDialog::save(&default), move |app, paths| {
+        if app.session.is_rendering() || !app.session.project.render_queue.iter().any(|item| item == &expected) {
+            app.ui.status = "The render queue item changed while choosing a file. Choose it again.".into();
+            return;
+        }
+        if let Some(path) = paths.into_iter().next()
+            && let Err(error) = app.session.execute("renderQueue.setOutput", json!({"item": expected.id, "path": path}))
+        {
+            app.ui.status = error.to_string();
+        }
+    }) {
+        return Some(None);
+    }
+    app.hooks.save_dialog(&default)
 }
 
 pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
@@ -728,7 +812,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 lp.with_clip_rect(path_rect.intersect(list)).text(pos2(path_rect.min.x, r.center().y), Align2::LEFT_CENTER, &shown, Tokens::ui(11.5), col);
                 // Clicking the file name opens the save dialog (Output Movie To); Alt-click, or a
                 // host without one, edits the name template in place.
-                let dialog = app.hooks.pick_save_file.is_some();
+                let dialog = app.async_dialogs_required || app.hooks.pick_save_file.is_some();
                 if resp.clicked() && !rendering {
                     let picked = if ui.input(|i| i.modifiers.alt) { None } else { pick_output(app, it) };
                     match picked {
@@ -803,6 +887,139 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    fn consent_app() -> (EffectcraftApp, std::sync::Arc<std::sync::Mutex<Vec<String>>>, std::path::PathBuf) {
+        struct Exporter(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+        impl effectcraft_engine::Exporter for Exporter {
+            fn formats(&self) -> Vec<OutputFormat> {
+                OutputFormat::ALL.to_vec()
+            }
+            fn export(&self, job: &effectcraft_engine::ExportJob, _: &mut dyn FnMut(u64, u64) -> bool) -> Result<effectcraft_engine::ExportResult, String> {
+                self.0.lock().unwrap().push(job.path.into());
+                Ok(effectcraft_engine::ExportResult { path: job.path.into(), ..Default::default() })
+            }
+        }
+        crate::i18n::set_current("en");
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+        app.session.exporter = Some(std::sync::Arc::new(Exporter(calls.clone())));
+        app.session.execute("comp.new", json!({"name": "Consent", "width": 64, "height": 36, "duration": 0.125})).unwrap();
+        let folder = std::env::current_dir().unwrap().join("effects-render-consent");
+        let comp = app.session.active_comp_id().unwrap();
+        let mut item = RenderQueueItem::new(1, comp);
+        item.output.format = OutputFormat::Uncompressed;
+        item.output.output = folder.join("movie.mov").to_string_lossy().into_owned();
+        item.log = RenderLog::PlusSettings;
+        std::sync::Arc::make_mut(&mut app.session.project).render_queue.push(item);
+        app.require_async_file_dialogs();
+        (app, calls, folder)
+    }
+
+    #[test]
+    fn render_folder_continuation_cancel_wrong_folder_and_config_drift_write_nothing() {
+        use super::*;
+        for change in 0..8 {
+            let (mut app, calls, folder) = consent_app();
+            let answers: std::sync::Arc<std::sync::Mutex<Vec<crate::DialogDone>>> = Default::default();
+            let queue = answers.clone();
+            app.hooks.file_dialog_async = Some(Box::new(move |request, done| {
+                assert!(matches!(request, crate::FileDialog::Folder));
+                queue.lock().unwrap().push(done);
+            }));
+            let access = app.session.render_output_access().unwrap();
+            if change == 1 {
+                crate::i18n::set_current("ja");
+            }
+            defer_render(&mut app, json!({"wait": true}), access);
+            if change == 1 {
+                assert_eq!(
+                    app.ui.status,
+                    "レンダリングする前に、すべてのレンダリング出力ファイルを含むフォルダーを選択してください。ファイルは一切書き込まれていません。"
+                );
+            }
+            assert!(calls.lock().unwrap().is_empty());
+            app.run_dialog_answers();
+            match change {
+                2 => app.session.prefs.export.append_bits_to_name = true,
+                3 => std::sync::Arc::make_mut(&mut app.session.project).render_queue[0].log = RenderLog::PlusPerFrameInfo,
+                4 => app.session.script_ui.project_epoch += 1,
+                5 => app.session.state.active_comp = None,
+                6 => app.session.path = Some("changed.ecproj".into()),
+                _ => {}
+            }
+            let done = answers.lock().unwrap().pop().unwrap();
+            match change {
+                0 => done(Vec::new()),
+                7 => drop(done),
+                1 => done(vec![folder.join("unrelated").to_string_lossy().into_owned()]),
+                _ => done(vec![folder.to_string_lossy().into_owned()]),
+            }
+            app.run_dialog_answers();
+            if change == 1 {
+                assert_eq!(app.ui.status, "必要な出力フォルダー、またはその親フォルダーを選択してください。ファイルは一切書き込まれていません。");
+                crate::i18n::set_current("en");
+            }
+            assert!(calls.lock().unwrap().is_empty(), "case {change}");
+            assert!(app.session.render_job.is_none());
+            assert!(app.session.project.render_queue.iter().all(|item| item.started.is_none() && item.status != RenderStatus::Done));
+            assert!(app.pending_file_dialog.is_none());
+        }
+    }
+
+    #[test]
+    fn render_folder_answer_uses_the_same_command_and_real_registry_without_grant_bypass() {
+        use super::*;
+        let (mut app, calls, folder) = consent_app();
+        let answers: std::sync::Arc<std::sync::Mutex<Vec<crate::DialogDone>>> = Default::default();
+        let queue = answers.clone();
+        app.hooks.file_dialog_async = Some(Box::new(move |_, done| queue.lock().unwrap().push(done)));
+        let access = app.session.render_output_access().unwrap();
+        defer_render(&mut app, json!({"wait": true}), access);
+        app.run_dialog_answers();
+        answers.lock().unwrap().pop().unwrap()(vec![folder.to_string_lossy().into_owned()]);
+        app.run_dialog_answers();
+        if effectcraft_engine::macos_mas::directory_granted(&folder) {
+            assert_eq!(*calls.lock().unwrap(), vec![folder.join("movie.mov").to_string_lossy().into_owned()]);
+            assert_eq!(app.session.project.render_queue[0].status, RenderStatus::Done);
+        } else {
+            assert!(calls.lock().unwrap().is_empty());
+            assert!(app.session.render_job.is_none());
+            assert!(app.ui.status.contains("folder"));
+        }
+    }
+
+    #[test]
+    fn output_sheet_targets_the_original_queue_item_and_rejects_changes() {
+        use super::*;
+        use std::sync::{Arc, Mutex};
+        for changed in [false, true] {
+            let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+            app.session.execute("comp.new", json!({"name": "Output", "width": 64, "height": 36, "duration": 1})).unwrap();
+            app.session.execute("renderQueue.add", json!({"comp": app.session.active_comp_id().unwrap().0})).unwrap();
+            app.require_async_file_dialogs();
+            let original = app.session.project.render_queue[0].clone();
+            let answers: Arc<Mutex<Vec<crate::DialogDone>>> = Arc::default();
+            let queue = answers.clone();
+            app.hooks.file_dialog_async = Some(Box::new(move |request, done| {
+                assert!(matches!(request, crate::FileDialog::Save { .. }));
+                queue.lock().unwrap().push(done);
+            }));
+            assert_eq!(pick_output(&mut app, &original), Some(None));
+            app.run_dialog_answers();
+            if changed {
+                app.session.execute("renderQueue.setOutput", json!({"item": original.id, "path": "edited.png"})).unwrap();
+            }
+            answers.lock().unwrap().pop().unwrap()(vec!["selected.png".into()]);
+            app.run_dialog_answers();
+            let current = &app.session.project.render_queue[0];
+            assert_eq!(current.output.output, if changed { "edited.png" } else { "selected.png" });
+            if changed {
+                assert!(app.ui.status.contains("changed while choosing"));
+            }
+        }
+    }
+
     #[test]
     fn stamps() {
         assert_eq!(super::utc_stamp(0), "1970-01-01 00:00:00");

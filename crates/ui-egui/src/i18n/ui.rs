@@ -525,6 +525,14 @@ const JAPANESE: &[(&str, &str)] = &[
     ("⌘/Ctrl-drag a pin to record its motion", "⌘/Ctrl+ドラッグでピンの動きを記録"),
     ("▣ {}", "▣ {}"),
     ("⚠ {} is used by:", "⚠ {}は次のコマンドで使用中:"),
+    (
+        "Choose the containing folders for all render output files before rendering. No files were written.",
+        "レンダリングする前に、すべてのレンダリング出力ファイルを含むフォルダーを選択してください。ファイルは一切書き込まれていません。",
+    ),
+    (
+        "Choose a required output folder or a folder containing it. No files were written.",
+        "必要な出力フォルダー、またはその親フォルダーを選択してください。ファイルは一切書き込まれていません。",
+    ),
 ];
 
 const SIMPLIFIED_CHINESE: &[(&str, &str)] = &[
@@ -1060,6 +1068,11 @@ const SIMPLIFIED_CHINESE: &[(&str, &str)] = &[
     ("After Effects project", "After Effects 项目"),
     ("Lottie animation", "Lottie 动画"),
     ("Project", "项目"),
+    (
+        "Choose the containing folders for all render output files before rendering. No files were written.",
+        "渲染前，请选择包含所有渲染输出文件的文件夹。尚未写入任何文件。",
+    ),
+    ("Choose a required output folder or a folder containing it. No files were written.", "请选择所需的输出文件夹或包含它的文件夹。尚未写入任何文件。"),
 ];
 
 const TRADITIONAL_CHINESE: &[(&str, &str)] = &[
@@ -1590,6 +1603,11 @@ const TRADITIONAL_CHINESE: &[(&str, &str)] = &[
     ("After Effects project", "After Effects 專案"),
     ("Lottie animation", "Lottie 動畫"),
     ("Project", "專案"),
+    (
+        "Choose the containing folders for all render output files before rendering. No files were written.",
+        "算圖前，請選取包含所有算圖輸出檔案的資料夾。尚未寫入任何檔案。",
+    ),
+    ("Choose a required output folder or a folder containing it. No files were written.", "請選取所需的輸出資料夾或包含它的資料夾。尚未寫入任何檔案。"),
 ];
 
 /// Ukrainian (uk): original translations of the same interface rows as the Chinese catalogs.
@@ -2146,6 +2164,14 @@ const UKRAINIAN: &[(&str, &str)] = &[
     ("After Effects project", "Проєкт After Effects"),
     ("Lottie animation", "Анімація Lottie"),
     ("Project", "Проєкт"),
+    (
+        "Choose the containing folders for all render output files before rendering. No files were written.",
+        "Перед рендерингом виберіть папку, що містить усі вихідні файли рендерингу. Жодного файлу не було записано.",
+    ),
+    (
+        "Choose a required output folder or a folder containing it. No files were written.",
+        "Виберіть потрібну вихідну папку або папку, що її містить. Жодного файлу не було записано.",
+    ),
 ];
 
 // Brazilian Portuguese.
@@ -2580,6 +2606,14 @@ const PORTUGUESE: &[(&str, &str)] = &[
     ("⌘/Ctrl-drag a pin to record its motion", "⌘/Ctrl+arraste um pino para gravar seu movimento"),
     ("▣ {}", "▣ {}"),
     ("⚠ {} is used by:", "⚠ {} é usado por:"),
+    (
+        "Choose the containing folders for all render output files before rendering. No files were written.",
+        "Antes de renderizar, escolha a pasta que contém todos os arquivos de saída da renderização. Nenhum arquivo foi gravado.",
+    ),
+    (
+        "Choose a required output folder or a folder containing it. No files were written.",
+        "Escolha uma pasta de saída necessária ou uma pasta que a contenha. Nenhum arquivo foi gravado.",
+    ),
 ];
 
 /// Czech (cs): original translations covering every row in the Chinese panel catalogs.
@@ -3115,6 +3149,14 @@ const CZECH: &[(&str, &str)] = &[
         "Tyto sousední klíčové snímky nelze interpolovat, protože mají různý počet bodů přechodu.",
     ),
     ("Variable fonts only", "Jen proměnná písma"),
+    (
+        "Choose the containing folders for all render output files before rendering. No files were written.",
+        "Před vykreslením vyberte složku obsahující všechny výstupní soubory vykreslení. Nebyly zapsány žádné soubory.",
+    ),
+    (
+        "Choose a required output folder or a folder containing it. No files were written.",
+        "Vyberte požadovanou výstupní složku nebo složku, která ji obsahuje. Nebyly zapsány žádné soubory.",
+    ),
 ];
 
 #[cfg(test)]
@@ -3179,10 +3221,11 @@ mod tests {
         ("panels/viewers.rs", include_str!("../panels/viewers.rs")),
         // Text the interface draws but does not own: the settings pages and the viewer's channel
         // and Fast Previews lists come from the engine as data, so their source strings live here.
-        // Both files pass the literal scan below unchanged (they hold no drawn literals).
+        // These files pass the literal scan below unchanged (they hold no drawn literals).
         ("engine settings pages", include_str!("../../../engine/src/prefs.rs")),
         ("engine viewer channels", include_str!("../../../engine/src/viewer.rs")),
         ("engine viewer commands", include_str!("../../../engine/src/commands/viewer_cmds.rs")),
+        ("engine render output messages", include_str!("../../../engine/src/render_queue/output_access.rs")),
     ];
 
     /// Call shapes that hand a string literal straight to the user.

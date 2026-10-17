@@ -273,6 +273,9 @@ fn no_params(p: &Value) -> bool {
 
 /// Execute a UI or engine command by id.
 pub fn invoke(app: &mut EffectcraftApp, ctx: &egui::Context, id: &str, params: Value) -> Result<Value, String> {
+    if id == "renderQueue.render" {
+        return crate::panels::render_queue::render(app, ctx, params);
+    }
     // Layer ▸ New ▸ Text (menu, shortcut, context menus) puts an insertion point in the centre of
     // the comp, as After Effects does, so typing goes into Source Text rather than running
     // shortcuts (#866). `engine.execute` keeps the headless default.
@@ -330,6 +333,9 @@ pub fn invoke(app: &mut EffectcraftApp, ctx: &egui::Context, id: &str, params: V
     // Closing a modified project asks to save it first; the command runs once answered.
     if crate::panels::unsaved::guard(app, id, &params) {
         return Ok(json!({"dialog": "unsavedChanges"}));
+    }
+    if let Some(result) = project_folder_dialog(app, id, &params) {
+        return result;
     }
     // Deleting Project items that compositions use asks first, as in After Effects.
     if crate::panels::delete_items::guard(app, id, &params) {
@@ -652,17 +658,6 @@ pub fn invoke(app: &mut EffectcraftApp, ctx: &egui::Context, id: &str, params: V
         "keys.interpolation" if no_params(&params) => crate::panels::key_dialogs::open_interpolation(app)?,
         "layer.timeStretch" if no_params(&params) => crate::panels::key_dialogs::open_time_stretch(app)?,
         _ => {
-            if id == "renderQueue.render" && params.get("wait").is_none() {
-                // The UI renders in the background; the panel shows progress.
-                let mut p = params.clone();
-                if let Some(m) = p.as_object_mut() {
-                    m.insert("wait".into(), json!(false));
-                } else {
-                    p = json!({"wait": false});
-                }
-                app.show_panel(PanelKind::RenderQueue);
-                return app.session.execute(id, p).map_err(|e| e.to_string());
-            }
             if id == "renderQueue.add" {
                 let r = app.session.execute(id, params).map_err(|e| e.to_string());
                 match &r {
@@ -680,17 +675,6 @@ pub fn invoke(app: &mut EffectcraftApp, ctx: &egui::Context, id: &str, params: V
             }
             if crate::panels::dialogs::open_form(app, id, &params) {
                 return Ok(json!({"dialog": id}));
-            }
-            if id == "renderQueue.render" && params.get("wait").is_none() {
-                // The UI renders in the background; the panel shows progress.
-                let mut p = params.clone();
-                if let Some(m) = p.as_object_mut() {
-                    m.insert("wait".into(), json!(false));
-                } else {
-                    p = json!({"wait": false});
-                }
-                app.show_panel(PanelKind::RenderQueue);
-                return app.session.execute(id, p).map_err(|e| e.to_string());
             }
             if id == "renderQueue.add" {
                 let r = app.session.execute(id, params).map_err(|e| e.to_string());
@@ -1215,8 +1199,56 @@ pub fn frontend(app: &mut EffectcraftApp, ctx: &egui::Context, id: &str, p: Valu
     })
 }
 
+/// A selected project file grants only that file. Its linked footage needs an explicit
+/// selected folder; the sheet is chained on the next frame instead of nesting a modal loop.
+fn project_folder_dialog(app: &mut EffectcraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+    if !crate::macos_mas::enabled() || !matches!(id, "file.open" | "file.openRecent") {
+        return None;
+    }
+    let recent;
+    let path = if let Some(path) = params.get("path").and_then(Value::as_str) {
+        path
+    } else if id == "file.openRecent" {
+        let index = params.get("index").and_then(Value::as_u64).and_then(|n| usize::try_from(n).ok()).unwrap_or(0);
+        recent = app.session.prefs.recent_projects.get(index)?.clone();
+        &recent
+    } else {
+        return None;
+    };
+    let path = match crate::macos_mas::resolve(path) {
+        Ok(path) => path,
+        Err(e) => return Some(Err(e)),
+    };
+    let Some(parent) = path.parent() else {
+        return Some(Err("The project has no containing folder".into()));
+    };
+    if crate::macos_mas::directory_granted(parent) {
+        return None;
+    }
+    let mut params = Value::Object(params.as_object().cloned().unwrap_or_default());
+    params["path"] = json!(path.to_string_lossy());
+    let answer = crate::DialogAnswer { command: "file.open".into(), key: "__masProjectFolder", params, paths: Vec::new() };
+    let request = crate::FileDialog::ProjectFolder { project: path.to_string_lossy().into_owned() };
+    let pending = answer.clone();
+    if crate::file_dialog::defer(app, request.clone(), move |app, paths| dialog_answered(app, crate::DialogAnswer { paths, ..pending })) {
+        return Some(Ok(json!({"dialog": "projectFolderAccess"})));
+    }
+    let Some(spawn) = app.hooks.file_dialog_async.as_ref() else {
+        return Some(Err("Choose the project folder with File > Open to allow linked footage.".into()));
+    };
+    let tx = app.dialog_answers.0.clone();
+    spawn(
+        request,
+        Box::new(move |paths| {
+            let _ = tx.send(crate::DialogAnswer { paths, ..answer });
+        }),
+    );
+    Some(Ok(json!({"dialog": "projectFolderAccess"})))
+}
+
 /// Commands that need a file or folder path: ask the host's file dialog when `params` lacks one.
 fn file_dialog(app: &mut EffectcraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+    #[derive(Clone, Copy)]
     enum Ask {
         Folder,
         Import,
@@ -1269,16 +1301,20 @@ fn file_dialog(app: &mut EffectcraftApp, id: &str, params: &Value) -> Option<Res
     // A host whose modal dialogs would run a nested event loop inside this frame (macOS: a
     // drag over the window then re-entered winit's event handler and aborted, #511) shows the
     // dialog without blocking; the command continues when the answer arrives.
+    let request = match ask {
+        Ask::Folder => crate::FileDialog::Folder,
+        Ask::Import => crate::FileDialog::Open { exts: MEDIA.iter().map(|e| e.to_string()).collect(), many: key == "paths" },
+        Ask::OpenProject => crate::FileDialog::OpenProject,
+        Ask::Open(exts) => crate::FileDialog::Open { exts: exts.iter().map(|e| e.to_string()).collect(), many: false },
+        Ask::Save(default) => crate::FileDialog::save(default),
+    };
+    let answer = crate::DialogAnswer { command: id.to_string(), key, params: params.clone(), paths: Vec::new() };
+    let pending = answer.clone();
+    if crate::file_dialog::defer(app, request.clone(), move |app, paths| dialog_answered(app, crate::DialogAnswer { paths, ..pending })) {
+        return Some(Ok(json!({"dialog": id})));
+    }
     if let Some(spawn) = app.hooks.file_dialog_async.as_ref() {
-        let request = match ask {
-            Ask::Folder => crate::FileDialog::Folder,
-            Ask::Import => crate::FileDialog::Open { exts: MEDIA.iter().map(|e| e.to_string()).collect(), many: key == "paths" },
-            Ask::OpenProject => crate::FileDialog::OpenProject,
-            Ask::Open(exts) => crate::FileDialog::Open { exts: exts.iter().map(|e| e.to_string()).collect(), many: false },
-            Ask::Save(default) => crate::FileDialog::save(default),
-        };
         let tx = app.dialog_answers.0.clone();
-        let answer = crate::DialogAnswer { command: id.to_string(), key, params: params.clone(), paths: Vec::new() };
         spawn(
             request,
             Box::new(move |paths| {
@@ -1325,6 +1361,29 @@ fn picked_value(key: &str, paths: Vec<String>) -> Option<Value> {
 /// A file dialog shown without blocking ([`crate::Hooks::file_dialog_async`]) answered: run its
 /// command with the picked path (nothing when it was cancelled).
 pub(crate) fn dialog_answered(app: &mut EffectcraftApp, answer: crate::DialogAnswer) {
+    if answer.key == "__masProjectFolder" {
+        let Some(folder) = answer.paths.first() else {
+            return;
+        };
+        let Some(path) = answer.params.get("path").and_then(Value::as_str) else {
+            return;
+        };
+        let path = match crate::macos_mas::resolve(path) {
+            Ok(path) => path,
+            Err(error) => {
+                app.ui.status = error;
+                return;
+            }
+        };
+        if !path.starts_with(folder) || !path.parent().is_some_and(crate::macos_mas::directory_granted) {
+            app.ui.status = "The selected folder does not contain this project. Open it again and choose its containing folder.".into();
+            return;
+        }
+        if let Err(error) = run_with_picked(app, &answer.command, "path", &answer.params, json!(path.to_string_lossy())) {
+            app.ui.status = error;
+        }
+        return;
+    }
     let Some(v) = picked_value(answer.key, answer.paths) else { return };
     if let Err(e) = run_with_picked(app, &answer.command, answer.key, &answer.params, v) {
         app.ui.status = e;
@@ -1335,6 +1394,9 @@ pub(crate) fn dialog_answered(app: &mut EffectcraftApp, answer: crate::DialogAns
 fn run_with_picked(app: &mut EffectcraftApp, id: &str, key: &str, params: &Value, v: Value) -> Result<Value, String> {
     let mut p = params.as_object().cloned().unwrap_or_default();
     p.insert(key.to_string(), v);
+    if let Some(result) = project_folder_dialog(app, id, &Value::Object(p.clone())) {
+        return result;
+    }
     // Picked files import in the background, with the Importing card showing progress (#270).
     if matches!(id, "file.import" | "file.importMultiple") {
         p.insert("background".into(), Value::Bool(true));
@@ -2189,6 +2251,24 @@ mod tests {
         assert_eq!(*asked.borrow(), ["project Frame.png"]);
     }
 
+    #[test]
+    fn sandbox_project_folder_cancel_and_unrelated_selection_preserve_unsaved_project() {
+        let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+        app.session.execute("comp.new", json!({"name": "Keep my work", "width": 64, "height": 36, "duration": 1})).unwrap();
+        let original = app.session.project.to_json();
+        assert!(app.session.is_dirty());
+        for paths in [Vec::new(), vec!["/unrelated".to_string()]] {
+            dialog_answered(
+                &mut app,
+                crate::DialogAnswer { command: "file.open".into(), key: "__masProjectFolder", params: json!({"path": "/project/new.ecproj"}), paths },
+            );
+            assert_eq!(app.session.project.to_json(), original);
+            assert!(app.session.path.is_none());
+            assert!(app.session.is_dirty());
+        }
+        assert!(app.ui.status.contains("does not contain this project"));
+    }
+
     /// #511: with a host's non-blocking dialogs, a command's file dialog opens without running
     /// a nested event loop inside the frame (a drag over the window then aborted the app on
     /// macOS); the command runs on a later frame with the answer, and a cancelled one not at all.
@@ -2222,6 +2302,37 @@ mod tests {
         app.run_dialog_answers();
         assert!(!dir.join("Frame.png").exists());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn strict_menu_picker_does_not_fall_back_when_the_sheet_service_is_missing() {
+        let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+        app.require_async_file_dialogs();
+        app.hooks.pick_save = Some(Box::new(|_| panic!("no synchronous App Store fallback")));
+        let ctx = egui::Context::default();
+        assert_eq!(invoke(&mut app, &ctx, "file.saveAs", json!({})).unwrap(), json!({"dialog": "file.saveAs"}));
+        assert!(app.ui.status.contains("No file chooser"));
+        assert!(app.pending_file_dialog.is_none());
+        assert!(app.session.path.is_none());
+    }
+
+    #[test]
+    fn strict_menu_sheet_discards_an_answer_for_a_changed_selection() {
+        use std::sync::{Arc, Mutex};
+        let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+        app.require_async_file_dialogs();
+        let answers: Arc<Mutex<Vec<crate::DialogDone>>> = Arc::default();
+        let queue = answers.clone();
+        app.hooks.file_dialog_async = Some(Box::new(move |_, done| queue.lock().unwrap().push(done)));
+        let ctx = egui::Context::default();
+        invoke(&mut app, &ctx, "file.saveAs", json!({})).unwrap();
+        assert!(answers.lock().unwrap().is_empty());
+        app.run_dialog_answers();
+        app.session.state.project_selection.push(effectcraft_engine::project::ItemId(99));
+        answers.lock().unwrap().pop().unwrap()(vec!["must-not-save.ecproj".into()]);
+        app.run_dialog_answers();
+        assert!(app.ui.status.contains("changed while choosing"));
+        assert!(app.session.path.is_none());
     }
 
     #[test]

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Regenerate every app icon file from assets/app-icon/effectcraft.svg (the canonical vector).
+# Regenerate app icons from effectcraft.svg: supplied PNG brand plus editable vector overlays.
 #
 # Needs: resvg (brew install resvg / cargo install resvg). On macOS, iconutil also writes the
 # .icns. The outputs are committed, so builds and packaging never need these tools.
 #
 #   packaging/icons.sh
 #
-# effectcraft.svg and effectcraft-small.svg (the lighter 1024 px trace) come from craftrules
-# (assets/app-icons/effectcraft/, which also keeps the source drawing) and are copied in by hand.
+# effectcraft.svg embeds the exact supplied brand PNG with editable symbol/name paths (512, rx=104).
+# effectcraft-small.svg is the identical compact composition; copy it to the web favicon as well.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="$ROOT/assets/app-icon"

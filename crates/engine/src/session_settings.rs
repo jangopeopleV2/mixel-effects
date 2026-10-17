@@ -19,6 +19,15 @@ impl Session {
                 self.keymaps = Keymaps::from_json(&t);
             }
         }
+        if crate::macos_mas::enabled() {
+            for paths in [&mut self.prefs.recent_projects, &mut self.prefs.recent_footage, &mut self.prefs.recent_presets] {
+                for path in paths {
+                    if let Ok(resolved) = crate::macos_mas::resolve(path.as_str()) {
+                        *path = resolved.to_string_lossy().into_owned();
+                    }
+                }
+            }
+        }
         crate::commands::scripts::load_script_settings(self);
         self.prefs_changed();
         self.shortcuts_changed();
@@ -55,6 +64,9 @@ impl Session {
         // (the browser has no file system: no default folder there)
         if self.config.is_none() || cfg!(target_arch = "wasm32") {
             return None;
+        }
+        if crate::macos_mas::enabled() {
+            return crate::macos_mas::cache_dir("MIXEL Effects").map(|p| p.join(name));
         }
         let base = effectcraft_render::disk_cache::default_folder();
         Some(base.parent().map(|p| p.join(name)).unwrap_or_else(|| base.join(name)))
@@ -105,7 +117,11 @@ impl Session {
         use effectcraft_render::disk_cache::{DiskCache, default_folder, footage_salt};
         let d = &self.prefs.disk;
         let folder = if d.disk_cache_folder.trim().is_empty() {
-            (self.config.is_some() && !cfg!(target_arch = "wasm32")).then(default_folder)
+            if crate::macos_mas::enabled() {
+                self.config.as_ref().and_then(|_| crate::macos_mas::cache_dir("MIXEL Effects").map(|p| p.join("Disk Cache")))
+            } else {
+                (self.config.is_some() && !cfg!(target_arch = "wasm32")).then(default_folder)
+            }
         } else {
             Some(std::path::PathBuf::from(d.disk_cache_folder.trim()))
         };

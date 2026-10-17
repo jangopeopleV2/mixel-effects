@@ -5,3 +5,6 @@ target/
 /log
 .DS_Store
 .claude/worktrees/
+
+# Python packaging helpers
+__pycache__/

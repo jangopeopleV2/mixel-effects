@@ -669,6 +669,8 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn render(s: &mut Session, p: &Value) -> Result<Value> {
+    // Consent precedes even the optional render-start autosave.
+    s.require_render_output_access().map_err(EngineError::Other)?;
     let wait = b_p(p, "wait").unwrap_or(true);
     // Settings ▸ Project ▸ Auto-Save ▸ Save When Starting Render Queue.
     if s.prefs.auto_save.enabled

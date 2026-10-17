@@ -50,7 +50,7 @@ impl Opened {
     pub fn feed(&mut self, ready: bool, ctx: &egui::Context, raw: &mut egui::RawInput) {
         for e in self.inbox.drain() {
             match e {
-                Event::Open(paths) => self.pending.extend(paths),
+                Event::Open(paths) => self.pending.extend(paths.into_iter().filter_map(|p| effectcraft_engine::macos_mas::picked(p, false))),
                 Event::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
         }

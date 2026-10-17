@@ -225,6 +225,24 @@ fn timeline_colour_eyedropper_samples_the_comp() {
     h.state_mut().ui.timeline.open_groups.extend(open);
     open_layer(&mut h, l);
     h.run_steps(2);
+    // Viewer rendering runs on background workers. Advancing egui alone does not wait
+    // for the first frame, especially while the other integration tests are running.
+    let mut image = None;
+    for _ in 0..600 {
+        h.step();
+        image = h.state_mut().viewer_pixels();
+        if image.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let image = image.expect("the viewer must display a rendered frame before picking its colour");
+    let want = [0x20 as f64 / 255.0, 0xc0 as f64 / 255.0, 0x40 as f64 / 255.0];
+    let shown = effectcraft_ui_egui::panels::fx_widgets::sample_frame(&image, [0.0, 0.0, 320.0, 180.0], [6.0, 6.0])
+        .expect("the sample point is inside the displayed composition");
+    for k in 0..3 {
+        assert!((shown[k] as f64 - want[k]).abs() < 0.02, "the viewer must show the green background before the pick: {shown:?} vs {want:?}");
+    }
     click(&mut h, &format!("timeline.prop.{fill}.eyedropper"));
     assert_eq!(h.state().ui.fx_pick.as_ref().map(|p| (p.prop, p.kind.as_str())), Some((fill, "color")), "the eyedropper waits for a viewer click");
     let pos = effectcraft_ui_egui::panels::viewer::comp_to_screen(&h.ctx, [6.0, 6.0]).unwrap();
@@ -238,7 +256,6 @@ fn timeline_colour_eyedropper_samples_the_comp() {
         }
     });
     let Some(effectcraft_engine::keyframe::Value::Color(c)) = got else { panic!("{got:?}") };
-    let want = [0x20 as f64 / 255.0, 0xc0 as f64 / 255.0, 0x40 as f64 / 255.0];
     for k in 0..3 {
         assert!((c[k] - want[k]).abs() < 0.02, "{c:?} vs {want:?}");
     }

@@ -175,6 +175,15 @@ pub fn temp_path(path: &Path) -> PathBuf {
 /// rename it over `path`. A crash at any point leaves either the old file or the new one, never a
 /// torn file.
 pub fn atomic_write(path: &Path, data: &[u8]) -> std::io::Result<()> {
+    #[cfg(all(target_os = "macos", feature = "mac-app-store"))]
+    if crate::macos_mas::enabled() {
+        let target = crate::macos_mas::resolve(path).map_err(std::io::Error::other)?;
+        let actual = effectcraft_export::macos_atomic::write(&target, data)?;
+        if let Err(error) = crate::macos_mas::after_write(&actual) {
+            log::warn!("File was saved, but future access could not be retained: {error}");
+        }
+        return Ok(());
+    }
     atomic_write_with(path, data, |tmp, data| {
         use std::io::Write;
         let mut f = std::fs::File::create(tmp)?;
@@ -191,5 +200,9 @@ pub fn atomic_write_with(path: &Path, data: &[u8], write: impl FnOnce(&Path, &[u
         let _ = std::fs::remove_file(&tmp);
         return Err(e);
     }
-    std::fs::rename(&tmp, path)
+    std::fs::rename(&tmp, path)?;
+    if let Err(error) = crate::macos_mas::after_write(path) {
+        log::warn!("File was saved, but future access could not be retained: {error}");
+    }
+    Ok(())
 }

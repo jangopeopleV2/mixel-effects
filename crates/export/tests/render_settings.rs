@@ -387,6 +387,9 @@ fn cancelled_export_removes_only_files_it_opened() {
             }
             // Skip-existing checks the primary destination even when the new frames overflow.
             std::fs::write(dir.join("clip_00000.png"), b"keep").unwrap();
+            if cfg!(all(target_os = "macos", feature = "mac-app-store")) && !format.is_sequence() {
+                std::fs::write(output_dir.join("clip.mp4"), b"previous completed movie").unwrap();
+            }
             let result = export(
                 &Job {
                     project: &p,
@@ -413,7 +416,22 @@ fn cancelled_export_removes_only_files_it_opened() {
                 assert_eq!(std::fs::read(output_dir.join(name)).unwrap(), b"keep", "{name}");
             }
             let remaining: Vec<_> = std::fs::read_dir(&output_dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
-            assert_eq!(remaining.len(), decoys.len(), "partial files remain: {remaining:?}");
+            if cfg!(all(target_os = "macos", feature = "mac-app-store")) {
+                // Atomic jobs keep completed frames on cancellation. Uncommitted movie
+                // staging never occupies the final path, and every retained frame is valid.
+                if !format.is_sequence() {
+                    assert_eq!(std::fs::read(output_dir.join("clip.mp4")).unwrap(), b"previous completed movie", "cancelling replaced the original movie");
+                }
+                for name in remaining.iter().filter(|name| !decoys.contains(&name.as_str())) {
+                    if name == "clip.mp4" {
+                        continue;
+                    }
+                    assert!(name.starts_with("clip_") && name.ends_with(".png"), "unexpected output {name}");
+                    assert!(image::load_from_memory(&std::fs::read(output_dir.join(name)).unwrap()).is_ok(), "unfinished frame {name}");
+                }
+            } else {
+                assert_eq!(remaining.len(), decoys.len(), "partial files remain: {remaining:?}");
+            }
         }
     }
     std::fs::remove_dir_all(dir).unwrap();

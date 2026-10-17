@@ -9,6 +9,10 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+mac-app-store = ["dep:apple-scoped-bookmarks", "dep:objc2-foundation", "dep:effectcraft-export", "effectcraft-export/mac-app-store"]
+
 [dependencies]
 effectcraft-time = { workspace = true }
 effectcraft-geom = { workspace = true }
@@ -37,3 +41,8 @@ rayon = { workspace = true }
 image = { workspace = true }
 web-time = { workspace = true }
 exr = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+effectcraft-export = { workspace = true, optional = true }
+apple-scoped-bookmarks = { version = "=0.1.0", optional = true }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSPathUtilities", "NSString", "NSBundle"], optional = true }

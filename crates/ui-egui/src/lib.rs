@@ -7,6 +7,8 @@
 
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+pub use effectcraft_engine::macos_mas;
+
 pub mod audio;
 pub mod automation;
 pub mod bench;
@@ -17,6 +19,7 @@ pub mod dock;
 mod dock_shared;
 pub mod dock_ui;
 mod expression_diagnostics;
+mod file_dialog;
 pub mod frames;
 pub mod gpu_failure;
 pub mod header;
@@ -112,6 +115,8 @@ pub enum FileDialog {
     OpenProject,
     /// A folder.
     Folder,
+    /// Explicit project-folder access for linked footage in the sandbox.
+    ProjectFolder { project: String },
     /// Where to save `default` (a file name or path) with extension `ext` (empty: no filter);
     /// `project`: the project save dialog, given the file name.
     Save { default: String, ext: String, project: bool },
@@ -129,6 +134,7 @@ impl FileDialog {
 pub type DialogDone = Box<dyn FnOnce(Vec<String>) + Send>;
 
 /// A non-blocking file dialog's answer for the command that asked (`menus::dialog_answered`).
+#[derive(Clone)]
 pub(crate) struct DialogAnswer {
     pub command: String,
     pub key: &'static str,
@@ -313,6 +319,8 @@ pub struct EffectcraftApp {
     device_lost_close: Option<bool>,
     /// Answers of file dialogs shown without blocking ([`Hooks::file_dialog_async`]).
     pub(crate) dialog_answers: (Sender<DialogAnswer>, Receiver<DialogAnswer>),
+    pub(crate) async_dialogs_required: bool,
+    pub(crate) pending_file_dialog: Option<file_dialog::Pending>,
     /// Commands from the native menu bar.
     pub command_inbox: Option<Receiver<String>>,
     /// Pointer position in comp pixels (Info panel).
@@ -405,6 +413,8 @@ impl EffectcraftApp {
             gpu_failure_applied: None,
             device_lost_close: None,
             dialog_answers: std::sync::mpsc::channel(),
+            async_dialogs_required: false,
+            pending_file_dialog: None,
             command_inbox: None,
             pointer_comp: None,
             dialog_state: Default::default(),
@@ -739,9 +749,15 @@ impl EffectcraftApp {
 
     /// Run the commands whose non-blocking file dialogs have been answered.
     pub(crate) fn run_dialog_answers(&mut self) {
+        file_dialog::poll(self);
         while let Ok(answer) = self.dialog_answers.1.try_recv() {
             menus::dialog_answered(self, answer);
         }
+    }
+
+    /// App Store hosts require parented sheets for every native file picker.
+    pub fn require_async_file_dialogs(&mut self) {
+        self.async_dialogs_required = true;
     }
 
     /// Set up the GPU compositor on egui-wgpu's device (once). Without an adapter that runs
@@ -1597,6 +1613,9 @@ impl EffectcraftApp {
         self.run_dialog_answers();
         self.auto.begin_frame();
         self.frames.set_context(&ctx);
+        if self.pending_file_dialog.is_some() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(250));
+        }
         if self.session.render_job.is_some() {
             self.session.poll_render();
             ctx.request_repaint_after(std::time::Duration::from_millis(100));

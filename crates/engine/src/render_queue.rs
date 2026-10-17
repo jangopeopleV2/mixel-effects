@@ -17,6 +17,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Event, Session};
 
+pub mod output_access;
+use output_access::OutputAccess;
+
+struct RenderPlan {
+    items: Vec<Vec<(RenderQueueItem, String)>>,
+    needs_output: Vec<(u64, RenderStatus)>,
+    access: OutputAccess,
+}
+
 /// One export handed to the [`Exporter`].
 pub struct ExportJob<'a> {
     pub project: &'a Project,
@@ -55,6 +64,11 @@ pub struct ExportResult {
 
 /// Encodes render queue items (implemented by the export layer).
 pub trait Exporter: Send + Sync {
+    /// True for an exporter that writes native files. Memory/download exporters retain their
+    /// ordinary behavior; the actual filesystem host opts in and uses the live MAS registry.
+    fn native_file_outputs(&self) -> bool {
+        false
+    }
     /// Formats this build can write.
     fn formats(&self) -> Vec<OutputFormat>;
     /// Render and write one item (blocking). `progress(done, total)` returns `false` to cancel;
@@ -425,6 +439,84 @@ impl Session {
         self.render_job.as_ref().map(|j| j.shared.snapshot())
     }
 
+    /// Derive exactly the outputs handed to the worker, without changing queue status or writing.
+    fn plan_render(&self) -> Result<RenderPlan, String> {
+        let exporter = self.exporter.as_ref().ok_or("export is not available in this build")?;
+        let formats = exporter.formats();
+        let mut items = Vec::new();
+        let mut needs_output = Vec::new();
+        let mut access = OutputAccess::default();
+        for it in self.project.render_queue.iter().filter(|i| i.is_queued()) {
+            let mut modules = vec![];
+            let mut item_access = OutputAccess::default();
+            let mut problem = None;
+            for om in it.output_modules() {
+                let mut m = it.clone();
+                m.output = om.clone();
+                match self.resolve_output(&m) {
+                    Some(p) if formats.contains(&om.format) => {
+                        // Settings ▸ Export: Append Bit Depth to File Name, Segment Sequences /
+                        // Movie Files.
+                        let bits = output_bits(om.format, self.project.settings.bit_depth);
+                        let p = if crate::macos_mas::enabled() { crate::macos_mas::resolve(&p)?.to_string_lossy().into_owned() } else { p };
+                        let named = self.prefs.output_name(&p, bits);
+                        let segments = self.segments(&m, &named);
+                        let selected = if std::path::Path::new(&om.output).is_absolute() {
+                            crate::macos_mas::resolve(&om.output)?.to_string_lossy().into_owned()
+                        } else {
+                            om.output.clone()
+                        };
+                        let derived = it.output_modules().count() > 1 || segments.len() > 1 || std::path::Path::new(&named) != std::path::Path::new(&selected);
+                        for (segment, path) in &segments {
+                            item_access.include(segment, path, derived);
+                        }
+                        if self.storage_quota.is_some() && m.settings.storage_overflow {
+                            for folder in &self.project.render_prefs.overflow_folders {
+                                item_access.directory(std::path::Path::new(folder));
+                            }
+                        }
+                        modules.extend(segments);
+                    }
+                    Some(_) => problem = Some(RenderStatus::Failed(format!("{} export is not available", om.format.label()))),
+                    None if self.project.comp(it.comp).is_none() => problem = Some(RenderStatus::Failed("composition missing".into())),
+                    None => problem = Some(RenderStatus::NeedsOutput),
+                }
+                if problem.is_some() {
+                    break;
+                }
+            }
+            match problem {
+                Some(st) => needs_output.push((it.id, st)),
+                None => {
+                    access.extend(&item_access);
+                    items.push(modules);
+                }
+            }
+        }
+        // A queue containing several native files is one batch: obtain every containing
+        // scope before the first item can commit.
+        if items.iter().fold(0usize, |count, modules| count.saturating_add(modules.len())) > 1 {
+            for (item, path) in items.iter().flatten() {
+                access.include(item, path, true);
+            }
+        }
+        Ok(RenderPlan { items, needs_output, access })
+    }
+
+    /// Directory requirements for the complete queued render, including segments, sequences,
+    /// extra output modules, renamed files, requested logs and possible storage overflow roots.
+    pub fn render_output_access(&self) -> Result<OutputAccess, String> {
+        Ok(self.plan_render()?.access)
+    }
+
+    pub fn requires_native_output_access(&self) -> bool {
+        crate::macos_mas::enabled() && self.exporter.as_ref().is_some_and(|exporter| exporter.native_file_outputs())
+    }
+
+    pub fn require_render_output_access(&self) -> Result<(), String> {
+        if self.requires_native_output_access() { self.render_output_access()?.require() } else { Ok(()) }
+    }
+
     /// Start rendering every queued item. `wait`: block until done (otherwise a background thread
     /// renders, or the [`Session::offload`] worker; call [`Session::poll_render`] regularly).
     /// Returns the ids being rendered. Without threads or an offload (wasm32) the render always
@@ -437,35 +529,9 @@ impl Session {
         }
         self.poll_render();
         let exporter = self.exporter.clone().ok_or("export is not available in this build")?;
-        let formats = exporter.formats();
-        let mut items = Vec::new();
-        let mut needs_output = Vec::new();
-        for it in self.project.render_queue.iter().filter(|i| i.is_queued()) {
-            let mut modules = vec![];
-            let mut problem = None;
-            for om in it.output_modules() {
-                let mut m = it.clone();
-                m.output = om.clone();
-                match self.resolve_output(&m) {
-                    Some(p) if formats.contains(&om.format) => {
-                        // Settings ▸ Export: Append Bit Depth to File Name, Segment Sequences /
-                        // Movie Files.
-                        let bits = output_bits(om.format, self.project.settings.bit_depth);
-                        let p = self.prefs.output_name(&p, bits);
-                        modules.extend(self.segments(&m, &p));
-                    }
-                    Some(_) => problem = Some(RenderStatus::Failed(format!("{} export is not available", om.format.label()))),
-                    None if self.project.comp(it.comp).is_none() => problem = Some(RenderStatus::Failed("composition missing".into())),
-                    None => problem = Some(RenderStatus::NeedsOutput),
-                }
-                if problem.is_some() {
-                    break;
-                }
-            }
-            match problem {
-                Some(st) => needs_output.push((it.id, st)),
-                None => items.push(modules),
-            }
+        let RenderPlan { items, needs_output, access } = self.plan_render()?;
+        if self.requires_native_output_access() {
+            access.require()?;
         }
         if !needs_output.is_empty() {
             let p = Arc::make_mut(&mut self.project);

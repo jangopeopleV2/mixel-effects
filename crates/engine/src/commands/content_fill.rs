@@ -129,18 +129,30 @@ fn png(img: &Image) -> std::result::Result<Vec<u8>, String> {
     super::comp_more::encode_png(&rgba, img.width, img.height)
 }
 
-fn default_dir(s: &Session, name: &str) -> String {
-    let base = s.path.as_deref().and_then(|p| std::path::Path::new(p).parent().map(|d| d.join("Fill"))).unwrap_or_else(|| {
-        // (the browser has no temporary folder: its storage)
-        if cfg!(target_arch = "wasm32") { std::path::PathBuf::from("/Fill") } else { std::env::temp_dir().join("effectcraft-fill") }
-    });
+fn fallback_fill_base(sandbox: bool, private: Option<std::path::PathBuf>) -> Result<std::path::PathBuf> {
+    if sandbox {
+        return private.map(|path| path.join("effectcraft-fill")).ok_or_else(|| {
+            bad("contentFill.generate", "The signed App Store private container is unavailable. Relaunch the signed application before generating fill frames.")
+        });
+    }
+    // The browser uses its storage; ordinary desktop builds keep their existing temporary path.
+    Ok(if cfg!(target_arch = "wasm32") { std::path::PathBuf::from("/Fill") } else { std::env::temp_dir().join("effectcraft-fill") })
+}
+
+fn default_dir(s: &Session, name: &str) -> Result<String> {
+    let sandbox = crate::macos_mas::enabled();
+    let project_folder = s.path.as_deref().and_then(|path| std::path::Path::new(path).parent());
+    let base = match project_folder.filter(|folder| !sandbox || crate::macos_mas::directory_granted(folder)) {
+        Some(folder) => folder.join("Fill"),
+        None => fallback_fill_base(sandbox, crate::macos_mas::temporary_dir("MIXEL Effects"))?,
+    };
     let safe: String = name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
     let mut k = 1;
     loop {
         let d = base.join(format!("{safe}_Fill_{k}"));
         let ds = d.to_string_lossy().to_string();
         if !s.services.exists(&ds) && !s.services.exists(&format!("{ds}/fill_00000.png")) {
-            return ds;
+            return Ok(ds);
         }
         k += 1;
     }
@@ -282,7 +294,10 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let expand = st.alpha_expansion.round().max(0.0) as usize;
     let reference = st.reference_layer.filter(|r| comp.layer(*r).is_some()).map(|r| (r, Tick::from_seconds_f64(st.reference_time.unwrap_or(0.0))));
-    let dir = str_p(p, "outputDir").map(str::to_string).unwrap_or_else(|| default_dir(s, &layer.name));
+    let dir = match str_p(p, "outputDir") {
+        Some(dir) => dir.to_owned(),
+        None => default_dir(s, &layer.name)?,
+    };
     let plan = FillPlan {
         comp: cid,
         layer: lid,
@@ -423,4 +438,20 @@ pub fn specs() -> Vec<CommandSpec> {
             journal: true,
         },
     ]
+}
+
+#[cfg(test)]
+mod sandbox_fallback_tests {
+    #[test]
+    fn sandbox_fill_requires_verified_private_storage() {
+        assert!(super::fallback_fill_base(true, None).is_err());
+        let private = std::path::PathBuf::from("/owned-container/Temporary");
+        assert_eq!(super::fallback_fill_base(true, Some(private.clone())).unwrap(), private.join("effectcraft-fill"));
+    }
+
+    #[test]
+    fn ordinary_fill_keeps_the_platform_temporary_location() {
+        let expected = if cfg!(target_arch = "wasm32") { std::path::PathBuf::from("/Fill") } else { std::env::temp_dir().join("effectcraft-fill") };
+        assert_eq!(super::fallback_fill_base(false, None).unwrap(), expected);
+    }
 }

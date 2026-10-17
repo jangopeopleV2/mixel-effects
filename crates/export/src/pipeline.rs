@@ -208,7 +208,7 @@ impl<'a> Cx<'a> {
 
     /// Open a file and remember ownership for cancellation cleanup (including overflow paths).
     pub fn create(&self, path: &str) -> crate::Result<out::Out<'_>> {
-        let file = out::create(self.sink, path)?;
+        let file = out::create(self.sink, path, self.job.options.destination, self.job.options.published)?;
         if self.sink.is_none() {
             self.written.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(path.to_owned());
         }
@@ -216,18 +216,8 @@ impl<'a> Cx<'a> {
     }
 
     pub fn remove_cancelled_outputs(&self) -> crate::Result<()> {
-        let mut failure = None;
-        for path in self.written.lock().unwrap_or_else(std::sync::PoisonError::into_inner).iter() {
-            if let Err(e) = std::fs::remove_file(path)
-                && e.kind() != std::io::ErrorKind::NotFound
-            {
-                failure.get_or_insert_with(|| crate::ExportError::Io(format!("cannot remove cancelled output {path}: {e}")));
-            }
-        }
-        match failure {
-            Some(error) => Err(error),
-            None => Ok(()),
-        }
+        let written = self.written.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        out::remove_cancelled(cfg!(all(target_os = "macos", feature = "mac-app-store")), &written, |path| std::fs::remove_file(path))
     }
 
     /// Where a file goes: `path`, or (Use Storage Overflow) the first overflow folder with room
@@ -249,11 +239,11 @@ impl<'a> Cx<'a> {
     }
 
     /// Write the render log next to the output, as the Log setting asks. Returns its path.
-    pub fn write_log(&self, result: &Result<crate::Report, crate::ExportError>, seconds: f64) -> Option<String> {
+    pub fn write_log(&self, result: &Result<crate::Report, crate::ExportError>, seconds: f64) -> crate::Result<Option<String>> {
         let level = self.job.options.log;
         // Errors Only: a log for failures (a user stop is not an error).
         if level == RenderLog::ErrorsOnly && matches!(result, Ok(_) | Err(crate::ExportError::Cancelled)) {
-            return None;
+            return Ok(None);
         }
         let comp = self.comp();
         let path = log_path(self.job.path);
@@ -289,10 +279,14 @@ impl<'a> Cx<'a> {
                 s.push_str(&format!("  Frame {} ({:.3} s): rendered in {:.1} ms\n", f0 + i as i64, t.seconds(), secs * 1000.0));
             }
         }
-        let mut f = self.create(&path).ok()?;
-        std::io::Write::write_all(&mut f, s.as_bytes()).ok()?;
-        f.finish().ok()?;
-        Some(path)
+        let write = || -> crate::Result<()> {
+            let mut f = self.create(&path)?;
+            std::io::Write::write_all(&mut f, s.as_bytes()).map_err(crate::io)?;
+            f.finish()?;
+            Ok(())
+        };
+        write().map_err(|error| crate::ExportError::Io(format!("cannot write render log {path}: {error}")))?;
+        Ok(Some(path))
     }
 }
 
@@ -367,6 +361,40 @@ fn premultiplied8(img: &Image) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn requested_log_preserves_destination_create_failure_instead_of_discarding_it() {
+        use effectcraft_project::render_queue::{OutputModule, RenderSettings};
+        let project = Project::default();
+        let settings = RenderSettings::default();
+        let output = OutputModule::default();
+        let path = std::env::current_dir().unwrap().join("effects-log-denial/movie.mp4");
+        let path = path.to_string_lossy().into_owned();
+        let checked = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let checked_by_destination = std::sync::Arc::clone(&checked);
+        let denied = move |path: &std::path::Path| {
+            checked_by_destination.lock().unwrap().push(path.to_path_buf());
+            Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "dedicated log denied"))
+        };
+        let job = Job {
+            project: &project,
+            footage: &effectcraft_render::NoFootage,
+            expr: None,
+            accel: None,
+            comp: effectcraft_project::ItemId(1),
+            settings: &settings,
+            output: &output,
+            path: &path,
+            sink: None,
+            nested_switches: true,
+            options: crate::JobOptions { log: RenderLog::PlusSettings, destination: Some(&denied), ..Default::default() },
+        };
+        let cx = Cx::new(&job);
+        let error = cx.write_log(&Err(crate::ExportError::NoComp), 0.0).unwrap_err();
+        assert!(error.to_string().contains("dedicated log denied"));
+        assert!(error.to_string().contains("cannot write render log"));
+        assert_eq!(*checked.lock().unwrap(), vec![std::path::PathBuf::from(log_path(&path))]);
+    }
 
     #[test]
     fn layers_render_once_per_job() {

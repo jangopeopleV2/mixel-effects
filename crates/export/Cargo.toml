@@ -9,6 +9,10 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+mac-app-store = ["dep:objc2-foundation"]
+
 [dependencies]
 effectcraft-time = { workspace = true }
 effectcraft-project = { workspace = true }
@@ -28,6 +32,9 @@ rayon = { workspace = true }
 web-time = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSPathUtilities", "NSString", "NSFileManager", "NSURL", "NSError", "NSDictionary"], optional = true }
 
 [dev-dependencies]
 effectcraft-media = { workspace = true }

@@ -32,6 +32,9 @@
 
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+#[cfg(all(target_os = "macos", feature = "mac-app-store"))]
+pub mod macos_atomic;
+
 mod encode;
 mod hevc_av1;
 mod out;
@@ -49,7 +52,7 @@ use effectcraft_render::{ExprHost, FootageSource};
 
 pub use effectcraft_project::render_queue;
 pub use effectcraft_project::render_queue::StorageQuota;
-pub use out::Sink;
+pub use out::{Destination, Published, Sink};
 pub(crate) use pipeline::Cx;
 
 #[derive(Debug, thiserror::Error)]
@@ -97,6 +100,10 @@ pub struct Job<'a> {
 /// Job options beyond the Render Settings and Output Module.
 #[derive(Default)]
 pub struct JobOptions<'a> {
+    /// Resolve moved security-scoped output bookmarks at the native writer boundary.
+    pub destination: Option<&'a Destination>,
+    /// Called only after a native atomic output has been committed successfully.
+    pub published: Option<&'a Published>,
     /// The render log written next to the output.
     pub log: RenderLog,
     /// What the log calls the job (e.g. "#2 Main Comp").
@@ -181,10 +188,24 @@ pub async fn export_async(job: &Job<'_>, progress: &mut dyn FnMut(&Progress) -> 
     }
     let log = cx.write_log(&r, t0.elapsed().as_secs_f64());
     if let Ok(rep) = &mut r {
-        rep.log = log;
         rep.overflow = cx.overflowed.lock().unwrap_or_else(|e| e.into_inner()).clone();
     }
-    r
+    complete_log(r, log)
+}
+
+fn complete_log(mut result: Result<Report>, log: Result<Option<String>>) -> Result<Report> {
+    match log {
+        Ok(log) => {
+            if let Ok(report) = &mut result {
+                report.log = log;
+            }
+            result
+        }
+        Err(error) => Err(match result {
+            Ok(_) => error,
+            Err(original) => ExportError::Io(format!("{original}; {error}")),
+        }),
+    }
 }
 
 async fn export_with(cx: &Cx<'_>, progress: &mut dyn FnMut(&Progress) -> bool, t0: Instant) -> Result<Report> {
@@ -264,7 +285,9 @@ async fn sequence(cx: &Cx<'_>, comp: &Comp, w: u32, h: u32, st: &mut State<'_>) 
     let mut i = 0;
     while i < st.total {
         let end = (i + batch).min(st.total);
-        let ks: Vec<u64> = (i..end).filter(|k| !(cx.settings.skip_existing && out::exists(cx.sink, &sequence_path(cx.path, f0 + *k as i64)))).collect();
+        let ks: Vec<u64> = (i..end)
+            .filter(|k| !(cx.settings.skip_existing && out::exists(cx.sink, &sequence_path(cx.path, f0 + *k as i64), cx.options.destination)))
+            .collect();
         let written: Vec<Result<u64>> = cx
             .frames(comp, ks, |k, img| {
                 let path = sequence_path(cx.path, f0 + k as i64);
@@ -400,6 +423,16 @@ async fn gif_export(job: &Cx<'_>, comp: &Comp, w: u32, h: u32, st: &mut State<'_
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn requested_log_failure_cannot_turn_into_a_successful_report() {
+        let report = Report { path: "movie.mov".into(), frames: 3, width: 64, height: 36, seconds: 0.0, bytes: 100, audio: false, log: None, overflow: vec![] };
+        let error = complete_log(Ok(report), Err(ExportError::Io("requested log denied".into()))).unwrap_err();
+        assert!(error.to_string().contains("requested log denied"));
+        let error = complete_log(Err(ExportError::Encode("encoder failed".into())), Err(ExportError::Io("render log denied".into()))).unwrap_err();
+        assert!(error.to_string().contains("encoder failed"));
+        assert!(error.to_string().contains("render log denied"));
+    }
 
     #[test]
     fn fit_crops_and_pads() {

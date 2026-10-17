@@ -622,6 +622,21 @@ fn labels_ui(app: &mut EffectcraftApp, ui: &mut egui::Ui, cur: &Value, acts: &mu
     }
 }
 
+fn defer_path_setting(app: &mut EffectcraftApp, key: &str, request: crate::FileDialog) -> bool {
+    let key = key.to_owned();
+    crate::file_dialog::defer(app, request, move |app, paths| {
+        if app.dialog != Some(Dialog::Settings) {
+            return;
+        }
+        if let Some(path) = paths.into_iter().next() {
+            match app.session.prefs.set(&key, json!(path)) {
+                Ok(()) => app.session.prefs_changed(),
+                Err(error) => app.ui.status = error,
+            }
+        }
+    })
+}
+
 pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
     let all = pages();
     let mut page = app.dialog_state.settings_page.clone();
@@ -728,12 +743,18 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
                 }
             }
             Act::PickFolder(k) => {
+                if defer_path_setting(app, &k, crate::FileDialog::Folder) {
+                    continue;
+                }
                 if let Some(f) = app.hooks.pick_folder.as_ref().and_then(|f| f()) {
                     let _ = app.session.prefs.set(&k, json!(f));
                     app.session.prefs_changed();
                 }
             }
             Act::PickProject(k) => {
+                if defer_path_setting(app, &k, crate::FileDialog::OpenProject) {
+                    continue;
+                }
                 if let Some(f) = app.hooks.pick_open_project.as_ref().and_then(|f| f()) {
                     let _ = app.session.prefs.set(&k, json!(f));
                     app.session.prefs_changed();
@@ -743,8 +764,22 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
                 // The registry's file types for the task (`.pt`, `.task`).
                 let mut exts: Vec<&str> = effectcraft_engine::segment::models(task).filter_map(|m| m.file_name.rsplit_once('.').map(|x| x.1)).collect();
                 exts.dedup();
-                let picked = app.hooks.pick_files.as_ref().map(|f| f(&exts)).unwrap_or_default();
                 let cmd = if task == Task::Face { "face.model.install" } else { "roto.model.install" };
+                let repaint = ctx.clone();
+                if crate::file_dialog::defer(
+                    app,
+                    crate::FileDialog::Open { exts: exts.iter().map(|ext| ext.to_string()).collect(), many: false },
+                    move |app, paths| {
+                        if let Some(path) = paths.into_iter().next()
+                            && let Err(error) = crate::menus::invoke(app, &repaint, cmd, json!({"path": path}))
+                        {
+                            app.ui.status = error;
+                        }
+                    },
+                ) {
+                    continue;
+                }
+                let picked = app.hooks.pick_files.as_ref().map(|f| f(&exts)).unwrap_or_default();
                 if let Some(path) = picked.into_iter().next()
                     && let Err(e) = crate::menus::invoke(app, ctx, cmd, json!({"path": path}))
                 {
@@ -831,5 +866,42 @@ pub fn recovery(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
         && let Err(e) = crate::menus::invoke(app, ctx, "file.open", json!({"path": p}))
     {
         app.ui.status = e;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_sheet_keeps_the_key_and_does_not_apply_after_cancel() {
+        use std::sync::{Arc, Mutex};
+        for cancel_settings in [false, true] {
+            let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+            app.require_async_file_dialogs();
+            app.dialog = Some(Dialog::Settings);
+            let answers: Arc<Mutex<Vec<crate::DialogDone>>> = Arc::default();
+            let queue = answers.clone();
+            app.hooks.file_dialog_async = Some(Box::new(move |request, done| {
+                assert_eq!(request, crate::FileDialog::OpenProject);
+                queue.lock().unwrap().push(done);
+            }));
+            let key = "project.templatePath";
+            let before = serde_json::to_value(&app.session.prefs).unwrap();
+            assert!(defer_path_setting(&mut app, key, crate::FileDialog::OpenProject));
+            app.run_dialog_answers();
+            if cancel_settings {
+                app.dialog = None;
+            }
+            answers.lock().unwrap().pop().unwrap()(vec!["Chosen.ecproj".into()]);
+            app.run_dialog_answers();
+            let after = serde_json::to_value(&app.session.prefs).unwrap();
+            if cancel_settings {
+                assert_eq!(after, before);
+                assert!(app.ui.status.contains("changed while choosing"));
+            } else {
+                assert_eq!(after["project"]["templatePath"], "Chosen.ecproj");
+            }
+        }
     }
 }

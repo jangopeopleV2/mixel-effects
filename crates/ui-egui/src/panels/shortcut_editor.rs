@@ -192,6 +192,28 @@ const SIDE_KEYS: &[(&str, &str, f32, f32)] = &[
     ("→", "ArrowRight", 2.0, 5.0),
 ];
 
+fn defer_preset_file(app: &mut EffectcraftApp, export: bool, active: &str) -> bool {
+    let active = active.to_owned();
+    let request = if export {
+        crate::FileDialog::Save { default: format!("{active}.json"), ext: "json".into(), project: false }
+    } else {
+        crate::FileDialog::Open { exts: vec!["json".into()], many: false }
+    };
+    crate::file_dialog::defer(app, request, move |app, paths| {
+        if app.dialog != Some(crate::Dialog::Shortcuts) || app.session.keymaps.active != active {
+            app.ui.status = "The shortcut preset changed while choosing a file. Choose it again.".into();
+            return;
+        }
+        if let Some(path) = paths.into_iter().next() {
+            let (command, params) =
+                if export { ("shortcuts.export", json!({"preset": active, "path": path})) } else { ("shortcuts.import", json!({"path": path})) };
+            if let Err(error) = app.session.execute(command, params) {
+                app.ui.status = error.to_string();
+            }
+        }
+    })
+}
+
 pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
     let mut st = std::mem::take(&mut app.dialog_state.shortcuts);
     let mut run: Vec<(String, Value)> = vec![];
@@ -282,6 +304,7 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
             let b = ui.button(tr("Import..."));
             app.auto.add("shortcuts.import", b.rect, "Import");
             if b.clicked()
+                && !defer_preset_file(app, false, &active)
                 && let Some(p) = app.hooks.pick_files.as_ref().and_then(|f| f(&["json"]).into_iter().next())
             {
                 run.push(("shortcuts.import".into(), json!({"path": p})));
@@ -289,6 +312,7 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
             let b = ui.button(tr("Export..."));
             app.auto.add("shortcuts.export", b.rect, "Export");
             if b.clicked()
+                && !defer_preset_file(app, true, &active)
                 && let Some(p) = app.hooks.pick_save_file.as_ref().and_then(|f| f(&format!("{active}.json"), "json"))
             {
                 run.push(("shortcuts.export".into(), json!({"preset": active, "path": p})));
@@ -573,6 +597,30 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preset_sheet_rejects_a_changed_preset_and_cancel_never_runs_import() {
+        use std::sync::{Arc, Mutex};
+        let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+        app.require_async_file_dialogs();
+        app.dialog = Some(crate::Dialog::Shortcuts);
+        let answers: Arc<Mutex<Vec<crate::DialogDone>>> = Arc::default();
+        let queue = answers.clone();
+        app.hooks.file_dialog_async = Some(Box::new(move |_, done| queue.lock().unwrap().push(done)));
+        let active = app.session.keymaps.active.clone();
+        assert!(defer_preset_file(&mut app, true, &active));
+        app.run_dialog_answers();
+        app.session.keymaps.active = "Another preset".into();
+        answers.lock().unwrap().pop().unwrap()(vec!["must-not-write.json".into()]);
+        app.run_dialog_answers();
+        assert!(app.ui.status.contains("changed while choosing"));
+        let current = app.session.keymaps.clone();
+        assert!(defer_preset_file(&mut app, false, &current.active));
+        app.run_dialog_answers();
+        answers.lock().unwrap().pop().unwrap()(Vec::new());
+        app.run_dialog_answers();
+        assert_eq!(app.session.keymaps, current);
+    }
 
     #[test]
     fn combo_text_round_trips_through_the_parser() {

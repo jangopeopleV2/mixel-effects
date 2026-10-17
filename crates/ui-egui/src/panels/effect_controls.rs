@@ -84,7 +84,6 @@ pub fn reveal_applied(app: &mut EffectcraftApp, params: &serde_json::Value) {
 /// file dialog for their first empty file parameter and set the file on each; cancelling
 /// leaves the effect without one. Does nothing without a file dialog (tests, agents).
 pub fn choose_files_after_apply(app: &mut EffectcraftApp, applied: &serde_json::Value) {
-    let Some(pick) = app.hooks.pick_files.as_ref() else { return };
     let Some(comp) = app.session.active_comp() else { return };
     let uids: Vec<u64> = applied.get("effects").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|v| v.as_u64()).collect()).unwrap_or_default();
     let mut targets = vec![];
@@ -96,13 +95,14 @@ pub fn choose_files_after_apply(app: &mut EffectcraftApp, applied: &serde_json::
             g.walk("", &mut |_, pr| {
                 if found.is_none()
                     && let ParamUi::File { filters } = &pr.ui
-                    && matches!(&pr.value, Value::Str(s) if s.trim().is_empty())
+                    && let Value::Str(value) = &pr.value
+                    && value.trim().is_empty()
                 {
-                    found = Some((pr.uid, filters.clone()));
+                    found = Some((pr.uid, filters.clone(), value.clone()));
                 }
             });
-            if let Some((prop, f)) = found {
-                targets.push((l.id.0, prop));
+            if let Some((prop, f, value)) = found {
+                targets.push((l.id.0, prop, value));
                 filters = f;
             }
         }
@@ -110,13 +110,57 @@ pub fn choose_files_after_apply(app: &mut EffectcraftApp, applied: &serde_json::
     if targets.is_empty() {
         return;
     }
+    if defer_file_properties(app, &targets, &filters) {
+        return;
+    }
+    let Some(pick) = app.hooks.pick_files.as_ref() else { return };
     let exts: Vec<&str> = filters.iter().map(String::as_str).collect();
     let Some(path) = pick(&exts).into_iter().next() else { return };
-    for (layer, prop) in targets {
+    for (layer, prop, _) in targets {
         if let Err(e) = app.session.execute("prop.set", json!({"layer": layer, "prop": prop, "value": path})) {
             app.ui.status = e.to_string();
         }
     }
+}
+
+fn file_value(app: &EffectcraftApp, layer: u64, prop: u64) -> Option<&str> {
+    let prop = app.session.active_comp()?.layer(effectcraft_engine::project::LayerId(layer))?.props.find(prop)?;
+    match (&prop.ui, &prop.value) {
+        (ParamUi::File { .. }, Value::Str(value)) => Some(value),
+        _ => None,
+    }
+}
+
+fn defer_file_properties(app: &mut EffectcraftApp, targets: &[(u64, u64, String)], filters: &[String]) -> bool {
+    let targets = targets.to_vec();
+    crate::file_dialog::defer(app, crate::FileDialog::Open { exts: filters.to_vec(), many: false }, move |app, paths| {
+        if !targets.iter().all(|(layer, prop, value)| file_value(app, *layer, *prop) == Some(value.as_str())) {
+            app.ui.status = "The effect file parameter changed while choosing a file. Choose it again.".into();
+            return;
+        }
+        if let Some(path) = paths.into_iter().next() {
+            for (layer, prop, _) in targets {
+                if let Err(error) = app.session.execute("prop.set", json!({"layer": layer, "prop": prop, "value": path})) {
+                    app.ui.status = error.to_string();
+                }
+            }
+        }
+    })
+}
+
+fn defer_property_row_file(app: &mut EffectcraftApp, ctx: &egui::Context, actions: &mut Actions, target: (u64, u64, String), filters: &[String]) -> bool {
+    if !app.async_dialogs_required {
+        return false;
+    }
+    // A coalesced press/release queues this row's prop.select in the same
+    // frame as Choose. Commit those intended edits before recording the sheet
+    // origin, so its own selection does not invalidate an otherwise valid pick.
+    for (command, params) in std::mem::take(actions) {
+        if let Err(error) = crate::menus::invoke(app, ctx, &command, params) {
+            app.ui.status = error;
+        }
+    }
+    defer_file_properties(app, &[target], filters)
 }
 
 /// An undo-merge key for one gesture on `id`: a new key each time a drag starts, so separate
@@ -468,17 +512,20 @@ fn prop_row(
             let bw = 70.0;
             let br = Rect::from_min_size(pos2(vx, cy - 9.0), vec2(bw, 18.0));
             if widgets::text_button(ui, br, crate::i18n::tr("Choose..."), false, &t, egui::Id::new(("ec-file", uid))).clicked() {
-                let filters: Vec<&str> = match &prop.ui {
-                    ParamUi::File { filters } => filters.iter().map(String::as_str).collect(),
+                let filters: Vec<String> = match &prop.ui {
+                    ParamUi::File { filters } => filters.clone(),
                     _ => vec![],
                 };
-                match app.hooks.pick_files.as_ref() {
-                    Some(pick) => {
-                        if let Some(path) = pick(&filters).into_iter().next() {
-                            actions.push(("prop.set".into(), json!({"layer": layer.id.0, "prop": uid, "value": path})));
+                if !defer_property_row_file(app, ui.ctx(), actions, (layer.id.0, uid, s.clone()), &filters) {
+                    match app.hooks.pick_files.as_ref() {
+                        Some(pick) => {
+                            let exts: Vec<&str> = filters.iter().map(String::as_str).collect();
+                            if let Some(path) = pick(&exts).into_iter().next() {
+                                actions.push(("prop.set".into(), json!({"layer": layer.id.0, "prop": uid, "value": path})));
+                            }
                         }
+                        None => app.ui.status = "no file dialog available: set the path with prop.set".into(),
                     }
-                    None => app.ui.status = "no file dialog available: set the path with prop.set".into(),
                 }
             }
             app.auto.add(&format!("effectControls.prop.{uid}.choose"), br, &prop.name);
@@ -1549,5 +1596,81 @@ pub fn viewer_hook(
         if let Err(e) = crate::menus::invoke(app, &ctx, &id, params) {
             app.ui.status = e;
         }
+    }
+}
+
+#[cfg(test)]
+mod file_sheet_tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+
+    fn applied() -> (EffectcraftApp, serde_json::Value, Arc<Mutex<Vec<crate::DialogDone>>>) {
+        let mut session = effectcraft_engine::Session::default();
+        session.execute("comp.new", json!({"name": "LUT", "width": 64, "height": 36, "duration": 1})).unwrap();
+        session.execute("layer.newSolid", json!({"name": "Plate", "color": "#ff0000"})).unwrap();
+        let applied = session.execute("effect.apply", json!({"effect": "ec.utility.applylut"})).unwrap();
+        let mut app = EffectcraftApp::new(session);
+        app.require_async_file_dialogs();
+        let answers: Arc<Mutex<Vec<crate::DialogDone>>> = Arc::default();
+        let queue = answers.clone();
+        app.hooks.file_dialog_async = Some(Box::new(move |request, done| {
+            assert_eq!(request, crate::FileDialog::Open { exts: vec!["cube".into()], many: false });
+            queue.lock().unwrap().push(done);
+        }));
+        app.hooks.pick_files = Some(Box::new(|_| panic!("no blocking LUT picker")));
+        (app, applied, answers)
+    }
+
+    fn target(app: &EffectcraftApp, applied: &serde_json::Value) -> (u64, u64) {
+        let uid = applied["effects"][0].as_u64().unwrap();
+        let layer = &app.session.active_comp().unwrap().layers[0];
+        (layer.id.0, layer.props.find_group(uid).unwrap().get("lut").unwrap().uid)
+    }
+
+    #[test]
+    fn apply_lut_sheet_sets_its_original_file_parameter_only_after_poll() {
+        let (mut app, applied, answers) = applied();
+        let (layer, prop) = target(&app, &applied);
+        choose_files_after_apply(&mut app, &applied);
+        app.run_dialog_answers();
+        assert_eq!(file_value(&app, layer, prop), Some(""));
+        answers.lock().unwrap().pop().unwrap()(vec!["selected.cube".into()]);
+        assert_eq!(file_value(&app, layer, prop), Some(""));
+        app.run_dialog_answers();
+        assert_eq!(file_value(&app, layer, prop), Some("selected.cube"));
+    }
+
+    #[test]
+    fn property_sheet_cancellation_and_a_changed_file_parameter_are_not_applied() {
+        for cancel in [true, false] {
+            let (mut app, applied, answers) = applied();
+            let (layer, prop) = target(&app, &applied);
+            // A stale property snapshot is rejected even without a revision bump.
+            let expected = if cancel { "" } else { "old.cube" };
+            assert!(defer_file_properties(&mut app, &[(layer, prop, expected.into())], &["cube".into()]));
+            app.run_dialog_answers();
+            answers.lock().unwrap().pop().unwrap()(if cancel { Vec::new() } else { vec!["late.cube".into()] });
+            app.run_dialog_answers();
+            assert_eq!(file_value(&app, layer, prop), Some(""));
+            if !cancel {
+                assert!(app.ui.status.contains("effect file parameter changed"));
+            }
+        }
+    }
+
+    #[test]
+    fn a_coalesced_choose_click_commits_its_row_selection_before_starting_the_sheet() {
+        let (mut app, applied, answers) = applied();
+        let (layer, prop) = target(&app, &applied);
+        assert_ne!(app.session.state.selected_props, vec![(effectcraft_engine::project::LayerId(layer), prop)]);
+        let mut actions = vec![("prop.select".into(), json!({"layer": layer, "prop": prop, "add": false}))];
+        let ctx = egui::Context::default();
+        assert!(defer_property_row_file(&mut app, &ctx, &mut actions, (layer, prop, String::new()), &["cube".into()]));
+        assert!(actions.is_empty());
+        assert_eq!(app.session.state.selected_props, vec![(effectcraft_engine::project::LayerId(layer), prop)]);
+        app.run_dialog_answers();
+        answers.lock().unwrap().pop().unwrap()(vec!["selected.cube".into()]);
+        app.run_dialog_answers();
+        assert_eq!(file_value(&app, layer, prop), Some("selected.cube"));
     }
 }

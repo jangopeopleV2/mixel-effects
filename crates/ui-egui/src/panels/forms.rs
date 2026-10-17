@@ -11,7 +11,7 @@ use serde_json::{Map, Value, json};
 use crate::theme::Tokens;
 use crate::{Dialog, EffectcraftApp};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FieldKind {
     Number {
         value: f64,
@@ -36,7 +36,7 @@ pub enum FieldKind {
 }
 
 /// One form field. `key` may index into an array param (`value[1]`).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Field {
     pub key: String,
     pub label: String,
@@ -71,7 +71,7 @@ impl Field {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Form {
     pub title: String,
     pub command: String,
@@ -750,6 +750,26 @@ pub fn open_form(app: &mut EffectcraftApp, id: &str, p: &Value) -> bool {
     true
 }
 
+fn defer_browse(app: &mut EffectcraftApp, form: &Form, index: usize) -> bool {
+    let request = match form.fields.get(index).map(|field| &field.kind) {
+        Some(FieldKind::Path { exts, .. }) => crate::FileDialog::Open { exts: exts.clone(), many: false },
+        Some(FieldKind::SavePath(default)) => crate::FileDialog::save(default),
+        _ => return false,
+    };
+    let expected = form.clone();
+    crate::file_dialog::defer(app, request, move |app, paths| {
+        if app.dialog != Some(Dialog::Form) || app.dialog_state.form != expected {
+            app.ui.status = "The form changed while choosing a file. Choose it again.".into();
+            return;
+        }
+        if let Some(path) = paths.into_iter().next()
+            && let Some(FieldKind::Path { value, .. } | FieldKind::SavePath(value)) = app.dialog_state.form.fields.get_mut(index).map(|field| &mut field.kind)
+        {
+            *value = path;
+        }
+    })
+}
+
 pub fn show_form(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
     let mut f = app.dialog_state.form.clone();
     let (mut ok, mut close) = (false, false);
@@ -861,7 +881,12 @@ pub fn show_form(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
     for (id, r, l) in regs {
         app.auto.add(&id, r, &l);
     }
-    if let Some(i) = browse
+    // Store this frame's edits before starting a sheet; its continuation compares
+    // the whole form, including the command, target params and current values.
+    app.dialog_state.form = f.clone();
+    let deferred = browse.is_some_and(|index| defer_browse(app, &f, index));
+    if !deferred
+        && let Some(i) = browse
         && let Some(FieldKind::Path { value, exts }) = f.fields.get_mut(i).map(|f| &mut f.kind)
     {
         let exts: Vec<&str> = exts.iter().map(String::as_str).collect();
@@ -874,7 +899,8 @@ pub fn show_form(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
             None => app.ui.status = "no file dialog available: type the path".into(),
         }
     }
-    if let Some(i) = browse
+    if !deferred
+        && let Some(i) = browse
         && let Some(FieldKind::SavePath(value)) = f.fields.get_mut(i).map(|f| &mut f.kind)
     {
         match app.hooks.save_dialog(value) {
@@ -947,6 +973,58 @@ pub fn show_view_options(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Toke
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn browse_sheet_updates_only_the_unchanged_form_on_a_later_frame() {
+        use std::sync::{Arc, Mutex};
+        for save in [false, true] {
+            let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+            app.require_async_file_dialogs();
+            let answers: Arc<Mutex<Vec<crate::DialogDone>>> = Arc::default();
+            let queue = answers.clone();
+            app.hooks.file_dialog_async = Some(Box::new(move |request, done| {
+                assert_eq!(matches!(request, crate::FileDialog::Save { .. }), save);
+                queue.lock().unwrap().push(done);
+            }));
+            let field = if save { Field::save_path("path", "Output", "Frame.png") } else { Field::path("path", "Input", "", &["cube"]) };
+            form(&mut app, "File", "example.command", json!({"target": 7}), vec![field]);
+            let original = app.dialog_state.form.clone();
+            assert!(defer_browse(&mut app, &original, 0));
+            app.run_dialog_answers();
+            let done = answers.lock().unwrap().pop().unwrap();
+            done(vec!["selected".into()]);
+            assert_eq!(app.dialog_state.form, original);
+            app.run_dialog_answers();
+            assert_eq!(app.dialog_state.form.params()["path"], "selected");
+            assert_eq!(app.dialog, Some(Dialog::Form));
+        }
+    }
+
+    #[test]
+    fn browse_sheet_does_not_overwrite_edited_replaced_or_closed_form() {
+        use std::sync::{Arc, Mutex};
+        for changed in 0..3 {
+            let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+            app.require_async_file_dialogs();
+            let answers: Arc<Mutex<Vec<crate::DialogDone>>> = Arc::default();
+            let queue = answers.clone();
+            app.hooks.file_dialog_async = Some(Box::new(move |_, done| queue.lock().unwrap().push(done)));
+            form(&mut app, "Input", "example.command", json!({"target": 7}), vec![Field::path("path", "Input", "", &["cube"])]);
+            let original = app.dialog_state.form.clone();
+            assert!(defer_browse(&mut app, &original, 0));
+            app.run_dialog_answers();
+            match changed {
+                0 => app.dialog_state.form.fields[0].kind = FieldKind::Path { value: "typed".into(), exts: vec!["cube".into()] },
+                1 => app.dialog_state.form.base = json!({"target": 8}),
+                _ => app.dialog = None,
+            }
+            let current = app.dialog_state.form.clone();
+            answers.lock().unwrap().pop().unwrap()(vec!["late".into()]);
+            app.run_dialog_answers();
+            assert_eq!(app.dialog_state.form, current);
+            assert!(app.ui.status.contains("changed while choosing"));
+        }
+    }
 
     #[test]
     fn form_params_build_arrays_and_choices() {

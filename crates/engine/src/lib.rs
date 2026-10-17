@@ -10,6 +10,8 @@
 
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+pub mod macos_mas;
+
 pub mod autosave;
 pub mod camera_track;
 pub mod commands;
@@ -595,7 +597,8 @@ impl Session {
     }
 
     /// Run a command by id.
-    pub fn execute(&mut self, id: &str, params: Value) -> Result<Value> {
+    pub fn execute(&mut self, id: &str, mut params: Value) -> Result<Value> {
+        crate::macos_mas::resolve_params(&mut params).map_err(EngineError::Other)?;
         let spec = commands::find(id).ok_or_else(|| EngineError::UnknownCommand(id.to_string()))?;
         if let Err(why) = (spec.enabled)(self) {
             // Explicit targets (agents, scripts) don't need a UI selection.
