@@ -1,10 +1,9 @@
 //! Community and project links (shown in Help ▸, the About dialog, the start screen and the
-//! header's Discord button).
+//! header's project buttons).
 
 pub const APP_NAME: &str = "MIXEL Effects";
 pub const APP_SLUG: &str = "effectcraft";
-pub const DISCORD: &str = "https://discord.gg/artcraft";
-pub const WEBSITE: &str = "https://getartcraft.com";
+pub const WEBSITE: &str = "https://www.mixel.ch";
 pub const APP_PAGE: &str = "https://github.com/jangopeopleV2/mixel-effects";
 pub const GITHUB: &str = "https://github.com/jangopeopleV2/mixel-effects";
 pub const ISSUES: &str = "https://github.com/jangopeopleV2/mixel-effects/issues";
@@ -35,7 +34,7 @@ pub fn github_of(slug: &str) -> String {
 }
 
 /// Known apps share their fork's project page; unknown slugs retain upstream's
-/// app-page path under the fixed ArtCraft website authority.
+/// company website for unsupported app slugs.
 pub fn page_of(slug: &str) -> String {
     match slug {
         "photocraft" => "https://github.com/jangopeopleV2/mixel-photo".to_string(),
@@ -45,7 +44,7 @@ pub fn page_of(slug: &str) -> String {
         "pdfcraft" => "https://github.com/jangopeopleV2/mixel-print".to_string(),
         "effectcraft" => "https://github.com/jangopeopleV2/mixel-effects".to_string(),
         "designcraft" => "https://github.com/jangopeopleV2/mixel-design".to_string(),
-        _ => format!("https://getartcraft.com/apps/{slug}"),
+        _ => WEBSITE.to_string(),
     }
 }
 
@@ -79,10 +78,9 @@ mod tests {
         assert_eq!(github_of(APP_SLUG), GITHUB);
         assert_eq!(page_of(APP_SLUG), APP_PAGE);
         assert_eq!(github_of("futurecraft"), "https://github.com/storytold/futurecraft");
-        assert_eq!(page_of("futurecraft"), "https://getartcraft.com/apps/futurecraft");
+        assert_eq!(page_of("futurecraft"), WEBSITE);
         assert_eq!(github_of(""), "https://github.com/storytold/");
-        assert_eq!(page_of(""), "https://getartcraft.com/apps/");
-        assert_eq!(DISCORD, "https://discord.gg/artcraft");
-        assert_eq!(WEBSITE, "https://getartcraft.com");
+        assert_eq!(page_of(""), WEBSITE);
+        assert_eq!(WEBSITE, "https://www.mixel.ch");
     }
 }

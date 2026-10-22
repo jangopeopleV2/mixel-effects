@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
+exclude = ["mixel/vendor/accesskit_atspi_common", "mixel/vendor/accesskit_unix", "mixel/vendor/atspi", "mixel/vendor/atspi-common", "mixel/vendor/atspi-proxies", "mixel/vendor/zbus-lockstep", "mixel/vendor/zbus-lockstep-macros"]
 default-members = ["crates/*", "apps/*"]
 
 [workspace.package]
@@ -204,3 +205,12 @@ opt-level = 3
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[patch.crates-io]
+accesskit_atspi_common = { path = "mixel/vendor/accesskit_atspi_common" }
+accesskit_unix = { path = "mixel/vendor/accesskit_unix" }
+atspi = { path = "mixel/vendor/atspi" }
+atspi-common = { path = "mixel/vendor/atspi-common" }
+atspi-proxies = { path = "mixel/vendor/atspi-proxies" }
+zbus-lockstep = { path = "mixel/vendor/zbus-lockstep" }
+zbus-lockstep-macros = { path = "mixel/vendor/zbus-lockstep-macros" }
