@@ -61,12 +61,17 @@
         Condition="WIX_UPGRADE_DETECTED" />
 
     <StandardDirectory Id="ProgramFiles6432Folder">
-      <Directory Id="INSTALLFOLDER" Name="MIXEL Effects" />
+      <Directory Id="INSTALLFOLDER" Name="MIXEL Effects">
+        <Directory Id="LegalDir6a5f9d4eb2893a042e57" Name="Licenses">
+          <Directory Id="LegalDir758a4d232e589995f236" Name="epaint_default_fonts-0.36.2" />
+        </Directory>
+      </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder" />
     <StandardDirectory Id="DesktopFolder" />
 
     <Feature Id="Main" Title="MIXEL Effects" Level="1">
+      <ComponentGroupRef Id="LegalNoticesEffects" />
       <ComponentGroupRef Id="EffectcraftFiles" />
     </Feature>
   </Package>
@@ -95,6 +100,29 @@
         <Shortcut Id="DesktopShortcut" Name="MIXEL Effects" Description="MIXEL Effects motion graphics and visual effects"
             Target="[#EffectcraftExe]" WorkingDirectory="INSTALLFOLDER" Icon="EffectcraftIcon.ico" IconIndex="0" />
         <RegistryValue Root="HKCU" Key="Software\MIXEL Effects" Name="DesktopShortcut" Value="1" Type="string" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="LegalNoticesEffects">
+      <Component Id="LegalComponent9630fa37af50c316114b" Directory="LegalDir6a5f9d4eb2893a042e57">
+        <File Id="LegalFile9630fa37af50c316114b" Source="$(var.BinDir)\Licenses\NOTICE" KeyPath="yes" />
+      </Component>
+      <Component Id="LegalComponenta543b778e399c6af76d7" Directory="LegalDir6a5f9d4eb2893a042e57">
+        <File Id="LegalFilea543b778e399c6af76d7" Source="$(var.BinDir)\Licenses\ATTRIBUTION.md" KeyPath="yes" />
+      </Component>
+      <Component Id="LegalComponent7af7b3338e413ac92502" Directory="LegalDir758a4d232e589995f236">
+        <File Id="LegalFile7af7b3338e413ac92502" Source="$(var.BinDir)\Licenses\epaint_default_fonts-0.36.2\Hack-Regular.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="LegalComponente74aba2a0270c7df3d60" Directory="LegalDir758a4d232e589995f236">
+        <File Id="LegalFilee74aba2a0270c7df3d60" Source="$(var.BinDir)\Licenses\epaint_default_fonts-0.36.2\OFL.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="LegalComponenta67a8b96b70e16e7b210" Directory="LegalDir758a4d232e589995f236">
+        <File Id="LegalFilea67a8b96b70e16e7b210" Source="$(var.BinDir)\Licenses\epaint_default_fonts-0.36.2\UFL.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="LegalComponent235568a34306c4cc366a" Directory="LegalDir758a4d232e589995f236">
+        <File Id="LegalFile235568a34306c4cc366a" Source="$(var.BinDir)\Licenses\epaint_default_fonts-0.36.2\emoji-icon-font-mit-license.txt" KeyPath="yes" />
       </Component>
     </ComponentGroup>
   </Fragment>
