@@ -29,7 +29,7 @@
     <Property Id="ARPPRODUCTICON" Value="EffectcraftIcon.ico" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/jangopeopleV2/mixel-effects" />
     <Property Id="ARPURLUPDATEINFO" Value="https://github.com/jangopeopleV2/mixel-effects" />
-    <Property Id="ARPHELPLINK" Value="https://discord.gg/artcraft" />
+    <Property Id="ARPHELPLINK" Value="https://www.mixel.ch" />
 
     <!-- An upgrade, repair or silent reinstall goes where the installed copy already is: the App Paths
          "Path" value written below, or for releases before this installer change (no Path value; they

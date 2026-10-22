@@ -182,3 +182,7 @@ layout unchanged. Pointer gestures dispatch through this same catalog command.
 EffectCraft also supports `SetStackOpen` and `ResizeStack`. Dynamic panel identities use
 `{"Viewer":42}` or `{"ScriptPanel":77}` in the action. Closing runs the existing viewer
 and ScriptUI lifecycle callbacks; opening uses the existing panel creation commands.
+
+## MIXEL company and project links
+
+`help.website` opens `https://www.mixel.ch`; `help.appPage` remains the product project page. `help.discord` is not registered.

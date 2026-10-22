@@ -1230,10 +1230,9 @@ Help
   Enable Logging | help.enableLogging
   Reveal Logging File | help.revealLogFile
   ---
-  Join the ArtCraft Discord... | help.discord
   Provide Feedback... | help.reportIssue
   ---
-  ArtCraft Website | help.website
+  MIXEL Website | help.website
   MIXEL Effects Home Page | help.appPage
   MIXEL Effects on GitHub | help.github
   Open Demo Project | file.openDemoProject

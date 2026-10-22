@@ -1,6 +1,6 @@
 //! The Home screen, laid out like After Effects' (shown over the whole workspace at launch, from
 //! the Tools bar's Home button and by the Learn workspace). A left rail holds New Project / Open
-//! Project, the Home / Templates / Learn pages and, at its foot, the ArtCraft community links.
+//! Project, the Home / Templates / Learn pages and, at its foot, MIXEL company and project links.
 //! The Home page welcomes you with quick-start tiles (New Composition, the demo project, Import,
 //! New from Template) over the recent projects (File ▸ Open Recent, from Settings): a filterable
 //! table with thumbnails and Name / Opened / Size / Kind columns. Templates is the New from
@@ -272,8 +272,7 @@ fn rail_ui(app: &mut EffectcraftApp, ui: &mut egui::Ui, p: &egui::Painter, rail:
     }
     // Community links at the foot (below the pages when the window is short).
     let links = [
-        (Icon::Chat, "Join the ArtCraft Discord", "help.discord"),
-        (Icon::Globe, "getartcraft.com", "help.website"),
+        (Icon::Globe, "MIXEL Website", "help.website"),
         (Icon::Globe, "MIXEL Effects home page", "help.appPage"),
         (Icon::Code, "MIXEL Effects on GitHub", "help.github"),
     ];
@@ -287,13 +286,10 @@ fn rail_ui(app: &mut EffectcraftApp, ui: &mut egui::Ui, p: &egui::Painter, rail:
     for (icon, label, cmd) in links {
         let r = Rect::from_min_size(pos2(x0, cy), vec2(w, 26.0));
         let resp = ui.interact(r, egui::Id::new(("home-link", cmd)), Sense::click());
-        let discord = cmd == "help.discord";
-        if discord {
-            p.rect_filled(r, 13.0, Color32::from_rgb(0x58, 0x65, 0xf2));
-        } else if resp.hovered() {
+        if resp.hovered() {
             p.rect_filled(r, 13.0, t.hover);
         }
-        let col = if discord { Color32::WHITE } else { t.text };
+        let col = t.text;
         icons::paint(p, Rect::from_center_size(pos2(r.min.x + 16.0, r.center().y), vec2(13.0, 13.0)), icon, col);
         p.text(pos2(r.min.x + 30.0, r.center().y), Align2::LEFT_CENTER, tr(label), Tokens::medium(12.0), col);
         app.auto.add(&format!("home.{cmd}"), r, label);
@@ -569,7 +565,7 @@ mod tests {
             "home.file.open",
             "home.app.newComp",
             "home.file.openDemoProject",
-            "home.help.discord",
+            "home.help.website",
             "home.help.github",
             "home.recent.0",
             "home.filter",

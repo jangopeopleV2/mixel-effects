@@ -8,25 +8,25 @@ const PORTAL_NAMESPACE: &str = "org.freedesktop.appearance";
 const PORTAL_KEY: &str = "color-scheme";
 
 #[cfg(target_os = "linux")]
-fn portal_proxy() -> Option<zbus::blocking::Proxy<'static>> {
-    let conn = zbus::blocking::connection::Builder::session().ok()?.method_timeout(std::time::Duration::from_secs(2)).build().ok()?;
-    zbus::blocking::Proxy::new(&conn, "org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings").ok()
+fn portal_proxy() -> Option<zbus::Proxy<'static>> {
+    let conn = zbus::block_on(zbus::connection::Builder::session().method_timeout(std::time::Duration::from_secs(2)).build()).ok()?;
+    zbus::block_on(zbus::Proxy::new(&conn, "org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings")).ok()
 }
 
 #[cfg(target_os = "linux")]
-fn portal_theme(proxy: &zbus::blocking::Proxy<'_>) -> Option<egui::Theme> {
-    let value: zbus::zvariant::OwnedValue = proxy.call("Read", &(PORTAL_NAMESPACE, PORTAL_KEY)).ok()?;
+fn portal_theme(proxy: &zbus::Proxy<'_>) -> Option<egui::Theme> {
+    let value: zbus::OwnedVariant = zbus::block_on(proxy.call("Read", &(PORTAL_NAMESPACE, PORTAL_KEY))).ok()?;
     decode(portal_code(value)?)
 }
 
 /// The colour-scheme number inside a portal reply.
 #[cfg(target_os = "linux")]
-fn portal_code(value: zbus::zvariant::OwnedValue) -> Option<u32> {
-    let mut value: zbus::zvariant::Value<'_> = value.into();
+fn portal_code(value: zbus::OwnedVariant) -> Option<u32> {
+    let mut value: zbus::Variant<'_> = value.into();
     // `Settings.Read` answers with a variant, and some portals nest another variant inside it.
     for _ in 0..4 {
         match value {
-            zbus::zvariant::Value::Value(inner) => value = *inner,
+            zbus::Variant::Variant(inner) => value = *inner,
             other => return u32::try_from(other).ok(),
         }
     }
@@ -91,7 +91,7 @@ pub fn service() -> Option<effectcraft_ui_egui::SystemThemeFn> {
             .spawn(move || {
                 let proxy = portal_proxy();
                 // Subscribe before reading so a change during startup stays queued.
-                let signals = proxy.as_ref().and_then(|p| p.receive_signal("SettingChanged").ok());
+                let signals = proxy.as_ref().and_then(|p| zbus::block_on(p.receive_signal("SettingChanged")).ok());
                 let initial = proxy.as_ref().and_then(portal_theme).or_else(gtk_theme);
                 // Startup can finish after the UI's bounded wait: wake its first frame too.
                 if worker_value.swap(code_of(initial), Ordering::Relaxed) != code_of(initial)
@@ -100,9 +100,9 @@ pub fn service() -> Option<effectcraft_ui_egui::SystemThemeFn> {
                     ctx.request_repaint();
                 }
                 let _ = ready.send(());
-                let Some(signals) = signals else { return };
-                for message in signals {
-                    let Ok((namespace, key, changed)) = message.body().deserialize::<(String, String, zbus::zvariant::OwnedValue)>() else {
+                let Some(mut signals) = signals else { return };
+                while let Some(message) = zbus::block_on(futures_lite::StreamExt::next(&mut signals)) {
+                    let Ok((namespace, key, changed)) = message.body().deserialize::<(String, String, zbus::OwnedVariant)>() else {
                         continue;
                     };
                     if namespace != PORTAL_NAMESPACE || key != PORTAL_KEY {
@@ -142,10 +142,10 @@ mod tests {
         assert_eq!(super::decode(1), Some(egui::Theme::Dark));
         assert_eq!(super::decode(2), Some(egui::Theme::Light));
         assert_eq!(super::decode(9), None);
-        let nested = zbus::zvariant::Value::Value(Box::new(zbus::zvariant::Value::Value(Box::new(zbus::zvariant::Value::U32(2)))));
-        assert_eq!(super::portal_code(zbus::zvariant::OwnedValue::try_from(nested).unwrap()), Some(2));
-        assert_eq!(super::portal_code(zbus::zvariant::OwnedValue::from(1u32)), Some(1));
-        assert_eq!(super::portal_code(zbus::zvariant::OwnedValue::try_from(zbus::zvariant::Value::from("dark")).unwrap()), None);
+        let nested = zbus::Variant::Variant(Box::new(zbus::Variant::Variant(Box::new(zbus::Variant::U32(2)))));
+        assert_eq!(super::portal_code(zbus::OwnedVariant::try_from(nested).unwrap()), Some(2));
+        assert_eq!(super::portal_code(zbus::OwnedVariant::from(1u32)), Some(1));
+        assert_eq!(super::portal_code(zbus::OwnedVariant::try_from(zbus::Variant::from("dark")).unwrap()), None);
         assert_eq!(super::parse_gtk_scheme("'prefer-light'\n"), Some(egui::Theme::Light));
         assert_eq!(super::parse_gtk_scheme("'prefer-dark'\n"), Some(egui::Theme::Dark));
         assert_eq!(super::parse_gtk_scheme("'default'\n"), None);
