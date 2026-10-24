@@ -207,6 +207,8 @@ lto = "thin"
 codegen-units = 1
 
 [patch.crates-io]
+# macOS App Store: retain winit 0.30.13 without private window-server blur APIs.
+winit = { path = "mixel/vendor/winit" }
 accesskit_atspi_common = { path = "mixel/vendor/accesskit_atspi_common" }
 accesskit_unix = { path = "mixel/vendor/accesskit_unix" }
 atspi = { path = "mixel/vendor/atspi" }
